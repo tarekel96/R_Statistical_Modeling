@@ -1,0 +1,280 @@
+---
+title: "markdown_practice"
+output: pdf_document
+date: "2023-01-15"
+---
+
+# Load libraries
+### Load in tidyverse and janitor libraries
+```{r, echo=FALSE}
+# Installing a library
+# install.packages("tidyverse")
+# install.packages("janitor")
+
+# Loading a library
+library(tidyverse)
+library(janitor)
+```
+
+# Read csv file
+### Load a csv into a dataframe [Titanic dataset]
+```{r}
+titanic_file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/Discussion/R_Basics/titanic.csv'
+# read.csv method
+titanic = read.csv(titanic_file_path, na.strings='')
+
+# view the dataframe
+glimpse(titanic)
+```
+# Data Visualization
+## Bar Chart
+```{r}
+# Bargraph of each of the Embarked classes
+ggplot(
+  data=titanic,
+  aes(x=as.factor(Embarked)) # aes is short for aesthetics
+) +
+geom_bar(na.rm=TRUE)
+```
+\newpage
+
+## Historgram
+```{r}
+# Histogram of the fare paid 
+ggplot(
+  data=titanic,
+  aes(x=Fare)
+) +
+geom_histogram()
+```
+\newpage
+
+## Bargraph
+```{r}
+# Bargraph of each of the Embarked classes with survived amount
+ggplot(
+  data=titanic,
+  aes(x=as.factor(Embarked),
+      fill=as.factor(Survived))
+) + geom_bar()
+```
+
+\newpage
+# Dataframe data transformations [Penguins dataset]
+```{r}
+penguins_file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/Discussion/R_Basics/penguins_full.csv'
+penguins = read.csv(penguins_file_path, na.strings='')
+glimpse(penguins)
+```
+
+## chr -> numeric data conversion
+**bill_length_mm** and **bill_depth_mm** need to be converted to numeric data types
+```{r}
+penguins$bill_length_mm=as.numeric(penguins$bill_length_mm)
+penguins$bill_depth_mm = as.numeric(penguins$bill_depth_mm)
+glimpse(penguins)
+```
+\newpage
+## chr (categorical) -> factor (numerical representation of class value)
+**species** a class variable needs to be converted to a factor variable
+```{r}
+penguins$species=as.factor(penguins$species)
+glimpse(penguins)
+```
+\newpage
+# Data Visualizations with transformed penguins dataframe
+## Boxplot
+```{r}
+# Boxplot of bill lengths for each species type (boxplot plots the 5 number summary)
+ggplot(
+  data=penguins,
+  aes(x=species,
+      y=bill_length_mm)
+) +
+geom_boxplot()
+```
+
+\newpage
+## Scatterplot
+```{r}
+# Scatterplot of bill depth and bill length, marked by each species
+ggplot(
+  data=penguins,
+  aes(x=bill_depth_mm,
+      y=bill_length_mm,
+      shape=species,
+      color=species)
+) +
+geom_point()
+
+# Making mark of each species larger in previous plot
+ggplot(
+  data=penguins,
+  aes(x=bill_depth_mm,
+      y=bill_length_mm,
+      shape=species,
+      color=species)
+) +
+geom_point(size=4)
+```
+
+\newpage
+# The tilde (~) and tilde dot (~. or .~) operators
+
+The variable on the **left-hand side of tilde operator is the dependent variable** and the variable(s) on the **right-hand side of tilde operator is/are called the independent variable(s)**. 
+
+For example:
+Regression_Model <- lm(y~ x1 + x2 + x3)
+
+If want to include all of a dataframe's columns, then can combine the tild operator with a dot (.). 
+
+For example:
+Regression_Model_New < - lm(y~ . , data = Regression_Data)
+
+## Stacking scatterplots horizontally
+```{r}
+# Stack the scatterplots horizontally  
+ggplot(
+  data=penguins,
+  aes(x=bill_depth_mm,
+      y=bill_length_mm,
+      shape=species,
+      color=species)
+) +
+geom_point(size=4) + facet_grid(.~species)
+```
+\newpage
+## Stacking scatterplots vertically
+```{r}
+ggplot(
+  data=penguins,
+  aes(x=bill_depth_mm,
+      y=bill_length_mm,
+      shape=species,
+      color=species)
+) +
+geom_point(size=4) + facet_grid(species~.)
+```
+
+\newpage
+# Dataframe methods & Chaining methods [LAPD dataset]
+
+## loading in dataset
+```{r}
+lapd_file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/Discussion/R_Basics/Police_Payroll.csv'
+lapd = read.csv(lapd_file_path, na.strings='')
+
+glimpse(lapd)
+```
+
+\newpage
+## Cleaning dataframe column names
+```{r}
+lapd = clean_names(lapd)
+glimpse(lapd)
+```
+
+\newpage
+## head() method
+```{r}
+# We do head() to view only the first few lines of the data
+head(select(lapd, year, base_pay))
+```
+
+## Selecting specific columns of a dataframe
+```{r, results="hide"}
+lapd %>%
+ select(year, base_pay)
+```
+
+## Removing specific columns of a dataframe 
+```{r}
+# selects all of the columns except the ones with negative sign inside select() method
+head(select(lapd, -row_id, -department_title))
+```
+
+\newpage
+## starts_with() method
+```{r}
+head(select(lapd, starts_with('q')))
+```
+
+## ends_with() method
+```{r}
+head(select(lapd, ends_with('pay')))
+```
+
+\newpage
+## Slicing - retrieving specific rows
+```{r}
+slice(lapd, 3:7)
+```
+
+## Filerting - filer columns based on boolean predicate
+```{r, results="hide"}
+filter(lapd, year == 2018)
+```
+
+\newpage
+## Method chaining
+```{r, results="hide"}
+# filter lapd on year = 2018 and base_pay > 62474
+lapd %>%
+  filter(year == 2018 & base_pay > 62474)
+
+# filter lapd on year = 2018 and base_pay > 62474 and display the row counts
+lapd %>%
+  filter(year == 2018 & base_pay > 62474) %>%
+  nrow()
+
+# filter lapd on year >= 2013 and year <= 2015 and display the row counts
+lapd %>%
+  filter(year >= 2013 & year <= 2015) %>%
+  nrow()
+
+# filter lapd on employment_type = full time and year = 2018 and display the row counts
+lapd %>%
+  filter(employment_type == "Full Time" & year == 2018) %>%
+  nrow()
+```
+
+### Method chaining - 2 chains
+```{r, results="hide"}
+# apply a filter to lapd and then select specific columns of the filtered dataframe
+lapd %>%
+  filter(year == 2018) %>%
+  select(job_class_title,
+         employment_type,
+         base_pay)
+```
+
+## Dataframe transformation of data with mutate() method
+```{r, results="hide"}
+# divide every base_pay_k value by 1000
+lapd %>%
+  mutate(base_pay_k = base_pay/1000)
+```
+
+### View summary of mutated lapd dataframe
+```{r}
+summarize(lapd, mean_base_pay = mean(base_pay)) 
+```
+
+## Creating a new column with boolean logic
+```{r, results="hide"}
+# Create a new variable called base_pay_level which has Less Than 0, No Income, Less than Median and Greater than 0 and Greater than Median. We will consider $62474 as the median
+lapd %>% 
+  mutate(base_pay_level = case_when(
+    base_pay < 0 ~ "Less than 0", 
+    base_pay == 0 ~ "No Income",
+    base_pay < 62474 & base_pay > 0 ~ "Less than Median, Greater than 0",
+    base_pay > 62474 ~ "Greater than Median"))
+```
+
+## Aggregate dataframe data using group_by() method
+```{r}
+lapd %>% 
+  group_by(employment_type) %>% 
+  summarize(med_base_pay = median(base_pay),
+            count = n())
+```
