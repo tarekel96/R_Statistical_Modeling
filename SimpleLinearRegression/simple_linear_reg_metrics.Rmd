@@ -1,0 +1,88 @@
+---
+title: "Understanding Simple Linear Regression Metrics"
+output: pdf_document
+date: "2023-01-26"
+---
+
+```{r, echo=FALSE, results="hide"}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+```
+Suppose a simple linear model is fit to predict Y= weight in kilograms using X= height in centimeters of an adult. But say a new simple linear model is fit using Y = height in centimeters and X= weight in kilograms (that is to say Y and X have reversed).
+State whether each of the following would be the same for this new model as it was for the original model, or it would be different and explain in a sentence or two.
+
+### Generate dummy data for testing
+```{r}
+# weights in kg, uniform distribution (100 units, a = 40, b = 120)
+weights <- runif(n = 100, min = 40, max = 120)
+# heights in cm, uniform distribution (100 units, a = 152, b = 214)
+heights <- runif(n = 100, min = 152, max = 214)
+```
+
+### Put data into dataframe
+```{r}
+df <- data.frame(weights, heights)
+```
+
+\newpage
+
+## Plot data
+### weight (x-axis), height (y-axis)
+```{r}
+ggplot(
+  data=df,
+  aes(x=weights,
+      y=heights
+      )
+) +
+geom_point()
+```
+
+### height (x-axis), weight (y-axis)
+```{r}
+ggplot(
+  data=df,
+  aes(x=heights,
+      y=weights
+      )
+) +
+geom_point()
+```
+
+\newpage
+
+## Model creation
+
+### weights (X), heights (Y)
+```{r}
+model_a <- lm(heights ~ weights)
+summary(model_a)
+```
+
+### heights (X), weights (Y)
+```{r}
+model_b <- lm(weights ~ heights)
+summary(model_b)
+```
+
+\newpage
+
+## Standardizing data
+```{r}
+z_heights <- scale(heights)
+z_weights <- scale(weights)
+```
+
+## Model creation w/ standardized data
+### z_weights (X), z_heights (Y)
+```{r}
+z_model_a <- lm(z_heights ~ z_weights)
+summary(z_model_a)
+```
+
+### z_heights (X), z_weights (Y)
+```{r}
+z_model_b <- lm(z_weights ~ z_heights)
+summary(z_model_b)
+```
