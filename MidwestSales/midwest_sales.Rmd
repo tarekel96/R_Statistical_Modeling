@@ -1,0 +1,63 @@
+---
+title: "Midwest Sales"
+author: "Tarek El-Hajjaoui"
+date: "2023-01-29"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+```
+
+Loading the dataset
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/R_Statistical_Modeling/MidwestSales/MidwestSales.txt'
+Midwest = read.table(file_path, header=FALSE, sep="", dec=".")
+```
+
+Give labels to the columns of the dataset.
+```{r}
+names(Midwest)=c("id","price","sqft","bed","bath","ac","garage","pool","year","quality","style","lot","hwy")
+summary(Midwest)
+```
+
+\newpage
+
+## Hypothesis Testing (two-sided test)
+* Null Hypothesis: there is no significant linear relationship between the square footage and price of a house; (B1 = 0).
+* Alternative Hypothesis: there is a significant linear relationship between the square footage and price of a house; (B1 != 0).
+
+## Confidence Intervals
+
+### Creating a Linear Model where the square footage of the house is used to predict the sale price.
+```{r}
+model <- lm(price ~ sqft, data=Midwest)
+summary(model)
+```
+
+### Confidence Interval (CI) for sqft B0 value
+```{r}
+confint(model)
+```
+
+\newpage
+
+### 95% confidence interval for the mean value of the response (price) when sqft=2000
+```{r}
+# interval="c" means confidence interval.
+predict(model, list(sqft=2000), interval= "c")
+```
+
+### 95% prediction interval for the mean value of the response (price) when sqft=2000
+```{r}
+# interval="c" means confidence interval.
+predict(model, list(sqft=2000), interval= "p")
+```
+
+### 90% prediction interval for the mean value of the response (price) when sqft=2000
+```{r}
+# interval="c" means confidence interval.
+predict(model, list(sqft=2000), interval= "p", level = 0.90)
+```
