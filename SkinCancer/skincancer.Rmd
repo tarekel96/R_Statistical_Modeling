@@ -1,0 +1,55 @@
+---
+title: "Skin Cancer"
+author: "Tarek El-Hajjaoui"
+date: "2023-01-30"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+Loading the dataset
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/R_Statistical_Modeling/SkinCancer/skincancer.txt'
+Skincancer = read.table(file_path, header=TRUE, sep="", dec=".")
+```
+
+```{r}
+summary(Skincancer)
+```
+
+\newpage
+
+### Creating a Linear Model where latitude (X) is predictive of mortality rate (Y) due to skin cancer.
+```{r}
+model <- lm(Mort ~ Lat, data=Skincancer)
+summary(model)
+```
+
+\newpage
+
+### Find and interpret a 99% confidence interval for the mean mortality rate when Lat=40.
+```{r}
+predict(model, list(Lat=40), level = 0.99, interval= "c")
+```
+
+### Find and interpret a 99% prediction interval for the individual mortality rate when Lat=40.
+```{r}
+predict(model, list(Lat=40), level = 0.99, interval= "p")
+```
+
+### Plotting 99% confidence and prediction intervals:
+```{r, message=FALSE, warning=FALSE}
+predictions <- predict(model, level = 0.99, interval="prediction")
+new_df <- cbind(Skincancer, predictions)
+
+ggplot(new_df, aes(x=Lat, y=Mort))+
+    geom_point() +
+    geom_line(aes(y=lwr), color = "red", linetype = "dashed")+
+    geom_line(aes(y=upr), color = "red", linetype = "dashed")+
+    geom_smooth(method=lm, se=TRUE)
+```
