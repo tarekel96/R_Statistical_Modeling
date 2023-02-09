@@ -1,0 +1,57 @@
+---
+title: "Interaction Term Testing"
+author: "Tarek El-Hajjaoui"
+date: "2023-02-09"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+Loading the dataset
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/R_Statistical_Modeling/Datasets/MidwestSales.txt'
+df = read.table(file_path, header=FALSE, sep="", dec=".")
+```
+
+Give labels to the columns of the dataset.
+```{r}
+names(df)=c("id","price","sqft","bed","bath","ac","garage","pool","year","quality","style","lot","hwy")
+```
+
+
+Summary of data set
+```{r}
+str(df)
+```
+
+\newpage
+
+Creating 2 different models with the same predictors except Model 2 will have an added interaction term.
+
+$$ \hat{Y} = \hat{Price} $$
+$$ X_1 = sqft $$
+$$ X_2 = NumOfBedroomrs $$
+$$ X_1*X_2 = sqft * NumOfBedroomrs $$
+
+### Model 1
+$$\hat{Y} = \hat{\beta_0} + \hat{\beta_1}X_1 + \hat{\beta_2}X_2$$
+```{r}
+# Model 1
+model_1 = lm(price ~ sqft + bed, data=df)
+summary(model_1)
+```
+
+\newpage
+### Model 2
+$$\hat{Y} = \hat{\beta_0} + \hat{\beta_1}X_1 + \hat{\beta_2}X_2 + \hat{\beta_3}(X_1*X_2)$$
+
+```{r}
+# Model 2
+model_2 = lm(price ~ sqft + bed + sqft * bed, data=df)
+summary(model_2)
+```
