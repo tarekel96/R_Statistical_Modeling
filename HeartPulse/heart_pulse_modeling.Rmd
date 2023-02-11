@@ -1,0 +1,117 @@
+---
+title: "Heart Pulse"
+author: "Tarek El-Hajjaoui"
+date: "2023-02-09"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+Loading the dataset
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/R_Statistical_Modeling/HeartPulse/pulse.txt'
+df = read.table(file_path, header=TRUE, sep="", dec=".")
+```
+
+Summary of data set
+```{r}
+str(df)
+```
+
+Correcting categorical column data types.
+```{r}
+df$Smoke = as.factor(df$Smoke)
+df$Gender = as.factor(df$Gender)
+df$Exercise = as.factor(df$Exercise)
+```
+
+Verifying column transformations
+```{r}
+str(df)
+```
+
+\newpage
+
+Summary of dataset
+```{r}
+summary(df)
+```
+
+*Model Creation below
+
+\newpage
+Creating a model in which the response, Y, is Rest (resting heart rate), and the covariates, X, are Hgt (Height in inches), Wgt (Weight in pounds) and Smoke (smoking status - 1 for smokers and 0 for non-smokers), and an interaction between height and weight.
+
+$$ \hat{Y} = \hat{Rest} $$
+$$ X_1 = Hgt $$
+$$ X_2 = Wgt $$
+$$ X_3 = Smoke $$
+$$ X_4 = Hgt * Wgt $$
+
+## Multicorviate Linear Regression Full Model
+
+$$\hat{Y} = \hat{\beta_0} + \hat{\beta_1}X_1 + \hat{\beta_2}X_2 + \hat{\beta_3}X_3 + \hat{\beta_4}(X_1*X_2)$$
+
+
+```{r}
+full_model <- lm(Rest ~ Hgt + Wgt + Smoke + Hgt * Wgt, data=df)
+```
+
+Summary of full model
+```{r}
+summary(full_model)
+```
+
+Calculating the SSE (Sum of Square Errors) for full model
+```{r}
+SSE <- sum(full_model$resid^2)
+SSE
+```
+
+Comparing to built-in deviance( ) method
+```{r}
+deviance(full_model)
+```
+
+\newpage
+
+## Multicorviate Linear Regression Reduced Model
+
+$$\hat{Y} = \hat{\beta_0} + \hat{\beta_1}X_1 + + \hat{\beta_3}X_3 $$
+
+```{r}
+reduced_model = lm(Rest ~ Hgt + Smoke, data=df)
+```
+
+Using ANOVA to test difference between the reduced model and full model.
+```{r}
+anova(reduced_model, full_model)
+```
+
+Sequential Sum of Squares Regression on the full model via ANOVA function.
+
+### Full Model
+
+$$\hat{Y} = \hat{\beta_0} + \hat{\beta_1}X_1 + \hat{\beta_2}X_2 + \hat{\beta_3}X_3 + \hat{\beta_4}(X_1*X_2)$$
+The Sequential Sum of Squares Regression on the full model is as follows:
+
+$$ anova(fullmodel) \rightarrow SSR(X_1), SSR(X_1 | X_2), SSR(X_3 | X_1, X_2), SSR(X_4 | X_1, X_2, X_3) $$
+
+```{r}
+anova_table <- anova(full_model)
+anova_table
+```
+
+Calculating the SSTO of the Sequential Sum of Squares Regression
+
+$$ SSTO = SSR(Hgt) + SSR (Wgt | Hgt) + SSR(Smoke | Hgt, Wgt) + SSR(Hgt * Wgt | Hgt, Wgt, Smoke) + SSE $$
+
+```{r}
+SSTO <- sum(anova_table[, 2])
+SSTO
+```
