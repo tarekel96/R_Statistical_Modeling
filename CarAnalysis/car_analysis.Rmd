@@ -1,0 +1,49 @@
+---
+title: "Car Analysis"
+author: "Tarek El-Hajjaoui"
+date: "2023-02-11"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+Loading the dataset
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/R_Statistical_Modeling/CarAnalysis/ThreeCars.txt'
+df = read.table(file_path, header=TRUE, sep="", dec=".")
+```
+
+Summary of data set
+```{r}
+str(df)
+```
+
+Transforming categorical columns to factor data types.
+```{r}
+cols <- c("Car", "Porsche", "Jaguar", "BMW")
+df[cols] <- lapply(df[cols], as.factor)
+```
+
+Checking if column data types transformed successfully.
+```{r}
+str(df)
+```
+
+\newpage
+
+5 statistic summary
+```{r}
+summary(df)
+```
+
+\newpage
+
+Scatterplot of Mileage on the X-axis and Price on the Y-axis.
+```{r}
+ggplot(df, aes(y = Price, x = Mileage, color = CarType)) + geom_point()
+```
