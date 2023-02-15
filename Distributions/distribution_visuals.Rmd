@@ -1,0 +1,26 @@
+---
+title: "Distribution Visualizations"
+author: "Tarek El-Hajjaoui"
+date: "2023-02-15"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+#library(tidyverse)
+#library(janitor)
+#library(ggplot2)
+```
+
+Beta Distributon
+```{r}
+#define range - Beta distribution has support (0, 1)
+p = seq(0, 1, length=100)
+
+#create Beta distribution with shape parameters 2 and 10
+X <- dbeta(p, 200, 400)
+Z <- dbeta(p, 400, 200)
+
+plot(p, X, type='l', col='green')
+lines(p, Z, col='purple') 
+```
