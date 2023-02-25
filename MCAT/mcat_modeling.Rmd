@@ -1,0 +1,77 @@
+---
+title: "MCAT Modeling & Analysis"
+author: "Tarek El-Hajjaoui"
+date: "2023-02-25"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+### Data loading & pre-processing
+
+Loading the dataset
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/R_Statistical_Modeling/MCAT/MedGPA.txt'
+df = read.table(file_path, header=TRUE, sep="", dec=".")
+```
+
+Summary of dataset
+```{r}
+str(df)
+```
+
+Transforming categorical columns to factor data type.
+```{r}
+categorical_cols <- c('Accept', 'Acceptance', 'Sex')
+df[categorical_cols] <- lapply(df[categorical_cols], as.factor)
+```
+
+Ensuring column data types are correct now.
+```{r}
+str(df)
+```
+
+\newpage
+
+### Splitting up data to supplement analysis in 2-sample t-test
+
+Separating the dataset into Female observations & Male observations
+```{r}
+df_female <- df[df$Sex == 'F',]
+df_male <- df[df$Sex == 'M',]
+```
+
+Female dataset summary
+```{r}
+str(df_female)
+```
+
+Male dataset summary
+```{r}
+str(df_male)
+```
+
+### 2-sample t-test: Y=MCAT scores, split dataset on Sex (male or female)
+```{r}
+two_sample_t_test <- t.test(df$MCAT[df$Sex=="F"],df$MCAT[df$Sex=="M"], var.equal=TRUE)
+two_sample_t_test
+```
+
+\newpage
+
+### Model Creation
+
+Model 1: Y=MCAT scores, X1=GPA, X2=Sex (male or female)
+```{r}
+model <- lm(MCAT ~ GPA + Sex, data=df)
+```
+
+Summary of Model 1
+```{r}
+summary(model)
+```
