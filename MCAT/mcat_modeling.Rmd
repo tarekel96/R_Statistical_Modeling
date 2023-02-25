@@ -64,14 +64,44 @@ two_sample_t_test
 
 \newpage
 
-### Model Creation
+#### Model 1
+#### Y=MCAT scores, X1=GPA, X2=Sex (male or female)
 
-Model 1: Y=MCAT scores, X1=GPA, X2=Sex (male or female)
 ```{r}
 model <- lm(MCAT ~ GPA + Sex, data=df)
 ```
 
-Summary of Model 1
+#### Summary of Model 1
+
 ```{r}
 summary(model)
+```
+
+\newpage
+
+#### Model 2 (adding interaction term, GPA*Sex)
+#### Y=MCAT scores, X1=GPA, X2=Sex, X3=GPA*Sex
+
+```{r}
+model_2 <- lm(MCAT ~ GPA + Sex + GPA*Sex, data=df)
+```
+
+#### Summary of Model 2
+
+```{r}
+summary(model_2)
+```
+
+\newpage
+
+#### Predictions
+
+predicted MCAT score for a female with a 4.0 GPA:
+```{r}
+predict(model_2, data.frame(GPA=4.0, Sex='F'), se.fit=TRUE)
+```
+
+predicted MCAT for a male with a 4.0 GPA:
+```{r}
+predict(model_2, data.frame(GPA=4.0, Sex='M'), se.fit=TRUE)
 ```
