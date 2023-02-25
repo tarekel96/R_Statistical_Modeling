@@ -1,0 +1,68 @@
+---
+title: "Depression Modeling"
+author: "Tarek El-Hajjaoui"
+date: "2023-02-25"
+output: pdf_document
+---
+
+---
+title: "MCAT Modeling & Analysis"
+author: "Tarek El-Hajjaoui"
+date: "2023-02-25"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+### Data loading & pre-processing
+
+Loading the dataset
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/R_Statistical_Modeling/Depression/depression.txt'
+df = read.table(file_path, header=TRUE, sep="", dec=".")
+```
+
+Summary of dataset - Note: Y = effectiveness score
+```{r}
+str(df)
+```
+
+Transform categorical columns to as.factor data types
+```{r}
+categorical_cols <- c('x2', 'x3', 'TRT')
+df[categorical_cols] <- lapply(df[categorical_cols], as.factor)
+```
+
+Ensuring column data types are correct now.
+```{r}
+str(df)
+```
+
+\newpage
+
+Model 1: Y =y (the effectiveness score) and X1=age
+```{r}
+model <- lm(y ~ age, data=df)
+```
+
+Model 1 summary
+```{r}
+summary(model)
+```
+
+\newpage
+
+Model 2: Y=effectiveness score, X1=age, X2=TRT (treatment), X3=age*TRT
+```{r}
+model_2 <- lm(y ~ age + TRT + age*TRT, data=df)
+```
+
+Model 2 summary
+```{r}
+summary(model_2)
+```

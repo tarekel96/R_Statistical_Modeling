@@ -25,9 +25,8 @@ str(df)
 
 Correcting categorical column data types.
 ```{r}
-df$Smoke = as.factor(df$Smoke)
-df$Gender = as.factor(df$Gender)
-df$Exercise = as.factor(df$Exercise)
+categorical_cols <- c('Smoke','Gender','Exercise')
+df[categorical_cols] <- lapply(df[categorical_cols], as.factor)
 ```
 
 Verifying column transformations
@@ -114,4 +113,37 @@ $$ SSTO = SSR(Hgt) + SSR (Wgt | Hgt) + SSR(Smoke | Hgt, Wgt) + SSR(Hgt * Wgt | H
 ```{r}
 SSTO <- sum(anova_table[, 2])
 SSTO
+```
+\newpage
+
+Model: Y =Rest and X1=Hgt
+```{r}
+model <- lm(Rest ~ Hgt, data=df)
+```
+
+Model summary
+```{r}
+summary(model)
+```
+
+Model 2: Y=Rest , X1=Hgt, and X2=Wgt
+```{r}
+model_2 <- lm(Rest ~ Hgt + Wgt, data=df)
+```
+
+Model 2 summary
+```{r}
+summary(model_2)
+```
+
+\newpage
+
+Using ANOVA to test difference between the reduced model and full model.
+```{r}
+anova(model, model_2)
+```
+
+Predict the resting heart rate for someone who is 70 inches tall and weighs 170 pounds:
+```{r}
+predict(model_2, data.frame(Hgt=70, Wgt=170), se.fit=TRUE)
 ```
