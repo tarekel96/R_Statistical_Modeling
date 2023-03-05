@@ -1,0 +1,112 @@
+---
+title: "Blood Pressure"
+author: "Tarek El-Hajjaoui"
+date: "2023-03-05"
+output: pdf_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+### Data loading & pre-processing
+
+Loading the dataset
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats210P/R_Statistical_Modeling/BloodPressure/Blood.txt'
+df = read.table(file_path, header=TRUE, sep="", dec=".")
+```
+
+Summary of dataset
+```{r}
+str(df)
+```
+
+Transforming categorical columns to factor data type.
+```{r}
+categorical_cols <- c('Smoke', 'Overwt')
+df[categorical_cols] <- lapply(df[categorical_cols], as.factor)
+```
+
+Ensuring column data types are correct now.
+```{r}
+str(df)
+```
+
+\newpage
+
+Side by side boxplots comparing the blood pressure for the three weight groups.
+```{r}
+ggplot(df, aes(x=Overwt, y=SystolicBP, fill=Overwt)) + 
+  geom_boxplot() + 
+  xlab('Weight Class') +
+  labs(caption = '0 = normal, 1 = overweight, 2 = obese')
+```
+
+
+The sample means, standard deviations and sample sizes for the three weight groups.
+
+Weight Group 0
+```{r}
+# class 0: mean, std, sample size
+df_0 <- subset(df, Overwt == 0)
+str(df_0)
+```
+
+```{r}
+mean_0 <- mean(df_0$SystolicBP)
+sd_0 <- sd(df_0$SystolicBP)
+n_0 <- length(df_0$SystolicBP)
+stats_0 <- c(mean_0, sd_0, n_0)
+print(stats_0)
+```
+
+\newpage
+
+Weight Group 1
+```{r}
+# class 0: mean, std, sample size
+df_1 <- subset(df, Overwt == 1)
+str(df_1)
+```
+
+```{r}
+mean_1 <- mean(df_1$SystolicBP)
+sd_1 <- sd(df_1$SystolicBP)
+n_1 <- length(df_1$SystolicBP)
+stats_1 <- c(mean_1, sd_1, n_1)
+print(stats_1)
+```
+
+Weight Group 2
+```{r}
+# class 0: mean, std, sample size
+df_2 <- subset(df, Overwt == 2)
+str(df_2)
+```
+
+```{r}
+mean_2 <- mean(df_2$SystolicBP)
+sd_2 <- sd(df_2$SystolicBP)
+n_2 <- length(df_2$SystolicBP)
+stats_2 <- c(mean_2, sd_2, n_2)
+print(stats_2)
+```
+
+Conducting a one-way anova test
+
+- One-way analysis of variance (ANOVA) is a statistical method for testing for differences in the means of three or more groups
+
+Hypothesis Testing
+
+- H0: a_0 == a_1 == a_2
+
+- Ha: at least 1 mean difference, a_k, does not equal 0
+
+```{r}
+one_way_anova <- aov(SystolicBP ~ as.factor(Overwt), data=df)
+summary(one_way_anova)
+```

@@ -1,0 +1,55 @@
+---
+title: "CIs and Bernoulli"
+author: "Tarek El-Hajjaoui"
+date: "2023-03-01"
+output: pdf_document
+---
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# Loading libraries
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+```
+
+Suppose that a random sample of eight observations is taken from the normal distribution with unknown mean and unknown variance, and that the observed values are 3.1, 3.5, 2.6, 3.4, 3.8, 3.0, 2.9, and 2.2. 
+
+```{r}
+x <- c(3.1, 3.5, 2.6, 3.4, 3.8, 3.0, 2.9, 2.2)
+x_mu <- mean(x)
+x_sd <- sd(x)
+n <- 8
+```
+
+Find the shortest confidence interval for mean with each of the following three confidence coefficients.
+
+- a) 0.90,
+
+```{r}
+q <- qt(1.0 - 0.1 / 2, n - 1)
+ci <- x_mu + c(-1, 1) * q * x_sd / sqrt(n)
+ci
+```
+
+- b) 0.95,
+
+```{r}
+q <- qt(1.0 - 0.05 / 2, n - 1)
+ci <- x_mu + c(-1, 1) * q * x_sd / sqrt(n)
+ci
+```
+
+- c) 0.99.
+
+```{r}
+q <- qt(1.0 - 0.01 / 2, n - 1)
+ci <- x_mu + c(-1, 1) * q * x_sd / sqrt(n)
+ci
+```
+
+6d
+```{r}
+p_hat <- 0.66
+n <- 2000
+ci <- p_hat + c(-1, 1) * qnorm(0.975) * sqrt(p_hat * (1 - p_hat) / n)
+ci
+```
