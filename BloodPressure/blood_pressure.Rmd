@@ -46,6 +46,7 @@ ggplot(df, aes(x=Overwt, y=SystolicBP, fill=Overwt)) +
   labs(caption = '0 = normal, 1 = overweight, 2 = obese')
 ```
 
+\newpage
 
 The sample means, standard deviations and sample sizes for the three weight groups.
 
@@ -63,8 +64,6 @@ n_0 <- length(df_0$SystolicBP)
 stats_0 <- c(mean_0, sd_0, n_0)
 print(stats_0)
 ```
-
-\newpage
 
 Weight Group 1
 ```{r}
@@ -96,17 +95,35 @@ stats_2 <- c(mean_2, sd_2, n_2)
 print(stats_2)
 ```
 
-Conducting a one-way anova test
+\newpage
 
-- One-way analysis of variance (ANOVA) is a statistical method for testing for differences in the means of three or more groups
-
-Hypothesis Testing
-
-- H0: a_0 == a_1 == a_2
-
-- Ha: at least 1 mean difference, a_k, does not equal 0
-
+Conducting a one-way anova modeling
 ```{r}
-one_way_anova <- aov(SystolicBP ~ as.factor(Overwt), data=df)
-summary(one_way_anova)
+anova_model <- aov(SystolicBP ~ as.factor(Overwt), data=df)
+summary(anova_model)
+```
+
+
+Tukey multiple comparisons procedure to determine which population means differ (if any)
+```{r}
+TukeyHSD(anova_model, conf.level=.95)
+```
+
+Tukey graph for one-way anova
+```{r}
+plot(TukeyHSD(anova_model, conf.level=.95), las = 2)
+```
+
+\newpage
+
+two factor ANOVA model with factors Smoke and Overwt (and response being SystolicBP) with no interaction
+```{r}
+two_way_anova <- aov(SystolicBP ~ as.factor(Overwt) + as.factor(Smoke), data=df)
+summary(two_way_anova)
+```
+
+two factor ANOVA model with factors Smoke and Overwt (and response being SystolicBP) interaction
+```{r}
+two_way_anova_i <- aov(SystolicBP ~ as.factor(Overwt) * as.factor(Smoke), data=df)
+summary(two_way_anova_i)
 ```
