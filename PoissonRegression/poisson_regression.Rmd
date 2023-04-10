@@ -1,0 +1,138 @@
+---
+title: "Poisson Regression"
+author: "Tarek El-Hajjaoui"
+date: "2023-04-10"
+output: html_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# library
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(hrbrthemes)
+library(ggplot2)
+```
+
+Beyond Multiple Linear Regression
+Applied Generalized Linear Models and Multilevel Models in R
+Paul Roback and Julie Legler
+
+## 4.11.1 Conceptual Exercises
+Exercises 1-4 involve predicting a response using one or more explanatory variables, where these examples have response variables that are counts per some unit of time or space. List the response (both what is being counted and over what unit of time or space) and relevant explanatory variables.
+
+### Q 4.11.1.2 
+Does the number of employers conducting on-campus interviews during a year differ for public and private colleges?
+
+- Response = number of employers conducting on-campus interviews per year
+  - What is being counted: number of employees
+  - Over what unit of time or space: year (time)
+- Explanatory Variable
+  - $\beta_1$ is an indicator variable for indicating public or private school
+
+### Q 4.11.1.4
+Has the number of deformed fish in randomly selected Minnesota lakes been affected by changes in trace minerals in the water over the last decade?
+
+- Response = number of deformed fish in randomly selected Minnesota lakes
+  - What is being counted: number of deformed fish
+  - Over what unit of time or space: selected Minnesota lakes (space)
+- Explanatory Variable
+  - $\beta_1$ is a continuous variable the amount of changes in trace minerals in the water over the last decade
+
+
+## 4.11.1.14 Credit card use
+A survey of 1,000 consumers asked respondents how many credit cards they use. Interest centers on the relationship between credit card use and income, in $10,000. The estimated coefficient for income is 2.1.
+
+Poisson Regression Model
+$$log(\lambda_i) = \beta_0 + (2.1)X_1 $$
+
+### Q 4.11.1.14.a
+Identify the predictor and interpret the estimated coefficient for the predictor in this context.
+
+- The predictor is income in $10,000 
+- The estimated coefficient for income of 2.1 means that for every $10,000 increase in income, the average number of credit cards used by a consumer increases by 2.1 (holding all other variables constant).
+
+### Q 4.11.1.14.b
+Describe how the assumption of linearity can be assessed in this example.
+
+- One approach could be plotting the logarithm of credit use on the y-axis and income (in units of $10,000). A linear (or curvilinear) should be observed. 
+
+### Q 4.11.1.14.c
+Suggest a way in which to assess the equal mean and variance assumption.
+
+- One approach could be to calculate the empirical mean and variance of number of credit cards used per income group (in values of $10,000). The means and variances in each group should be approximately equal or not too different in value. 
+- If the variance and means are different, the assumption may not be violated still as long as the ratio of the variance to the mean of the response variable (credit card use) is approximately constant across all levels of the predictor (income). This would mean that the variance of Y changes at the same rate as the mean as X changes.
+  
+## 4.11.2.1  Elephant mating.
+
+How does age affect male elephant mating patterns? An article by Poole (1989) investigated whether mating success in male elephants increases with age and whether there is a peak age for mating success. To address this question, the research team followed 41 elephants for one year and recorded both their ages and their number of matings. The data (Ramsey and Schafer 2002) is found in elephant.csv, and the variables are:
+
+- MATINGS (Y) = the number of matings in a given year
+- AGE (X) = the age of the elephant in years.
+
+**Poisson Regression Model - Elephant Study**
+
+$\lambda_i$ = Average Number Of Matings per group of age, i.
+
+$$log(\lambda_i) = \beta_0 + \beta_1X_1 $$
+
+```{r}
+# Loading the dataset
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/PoissonRegression/elephant.csv'
+df = read.csv(file_path, header = TRUE)
+```
+
+```{r}
+# dataset
+str(df)
+```
+
+```{r}
+# tidyverse 'group_by' and 'summarize' to get mean, var, and counts
+group_by(df, AGE) %>%
+ summarise(mean=mean(MATINGS), var=var(MATINGS), n=n())
+```
+
+### Q 4.11.2.1.a  
+Create a histogram of MATINGS.
+
+```{r}
+# Histogram of MATINGS
+ggplot(
+  data=df,
+  aes(x=AGE)
+) +
+geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.6) + 
+  labs(title="Elephant Matings",
+        x ="Age Group", y = "Count of Matings")
+```
+
+Is there preliminary evidence that number of matings could be modeled as a Poisson response? Explain.
+
+- Age (X) ranges from 27 to 52 with many of the ages having mating counts between 3-6 when age is less than 37. The graph is right skewed like many Poisson distributions. Additionally, the graph suggests that the number of matings per age is not a normally distributed response.
+
+### Q 4.11.2.1.b
+
+Plot MATINGS by AGE. Add a least squares line. 
+
+```{r}
+ggplot(data = df, aes(x = AGE, y = MATINGS)) +
+  geom_point() +
+  geom_smooth()
+```
+
+look at Residuals vs Fitted to see if the constant variance of Y assumption for Linear Regression is violated.
+```{r}
+# residuals vs fitted plot
+plot(lm(MATINGS~AGE,data=df), which=1)
+```
+
+Is there evidence that modeling matings using a linear regression with age might not be appropriate? Explain. (Hints: fit a smoother; check residual plots).
+
+- There is evidence that Linear Regression for modeling matings by age is not appropriate. The Least Squares Line and Residual vs Fitted plot both suggest that the constant variance of Y (mating) over X (age) assumption of Linear Regression is violated, thus Linear Regression is not an appropriate model for this problem.
+
+<!-- Transforming categorical columns to factor data type. -->
+<!-- ```{r} -->
+<!-- categorical_cols <- c('Smoke', 'Overwt') -->
+<!-- df[categorical_cols] <- lapply(df[categorical_cols], as.factor) -->
+<!-- ``` -->
