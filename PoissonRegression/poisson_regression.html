@@ -379,8 +379,8 @@ year
 </ul></li>
 <li>Explanatory Variable
 <ul>
-<li><span class="math inline">\(\beta_1\)</span> is an indicator
-variable for indicating public or private school</li>
+<li><span class="math inline">\(X_1\)</span> is an indicator variable
+for indicating public or private school</li>
 </ul></li>
 </ul>
 </div>
@@ -399,9 +399,9 @@ lakes
 </ul></li>
 <li>Explanatory Variable
 <ul>
-<li><span class="math inline">\(\beta_1\)</span> is a continuous
-variable the amount of changes in trace minerals in the water over the
-last decade</li>
+<li><span class="math inline">\(X_1\)</span> is a continuous variable
+the amount of changes in trace minerals in the water over the last
+decade</li>
 </ul></li>
 </ul>
 </div>
@@ -546,12 +546,13 @@ check residual plots).</p>
 is not appropriate. The Least Squares Line and Residual vs Fitted plot
 both suggest that the constant variance of Y (mating) over X (age)
 assumption of Linear Regression is violated, thus Linear Regression is
-not an appropriate model for this problem.
-<!-- Transforming categorical columns to factor data type. -->
-<!-- ```{r} --> <!-- categorical_cols <- c('Smoke', 'Overwt') -->
-<!-- df[categorical_cols] <- lapply(df[categorical_cols], as.factor) -->
-<!-- ``` --></li>
+not an appropriate model for this problem.</li>
 </ul>
+<!-- Transforming categorical columns to factor data type. -->
+<!-- ```{r} -->
+<!-- categorical_cols <- c('Smoke', 'Overwt') -->
+<!-- df[categorical_cols] <- lapply(df[categorical_cols], as.factor) -->
+<!-- ``` -->
 </div>
 </div>
 
