@@ -259,12 +259,12 @@ exp_coef <- exp(coef_estimates)
 exp_coef
 ```
 
-For a **1 unit increase in the predictor variable**, the expected count of the response variable ($\lambda$ = estimated mean number of burglaries):
+For a **1 unit increase in the predictor variable**:
 
-- act.comp: would increase by a factor of approximately 1.0549809 holding all other variables constant.
-- tuition: would decrease by a factor of approximately 0.9999610 holding all other variables constant.
-- pct.male: would decrease by a factor of approximately 0.9869548 holding all other variables constant.
-- total: would increase by a factor of approximately 1.0000267 holding all other variables constant.
+- act.comp: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would increase by a factor of approximately 1.0549809 holding all other variables constant.
+- tuition: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would decrease by a factor of approximately 0.9999610 holding all other variables constant.
+- pct.male: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would decrease by a factor of approximately 0.9869548 holding all other variables constant.
+- total: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would increase by a factor of approximately 1.0000267 holding all other variables constant.
 
 #### 4.11.2.5 d
 
@@ -290,6 +290,6 @@ exp_coef_2 <- exp(coef_estimates_2)
 exp_coef_2
 ```
 
-For a **1000 unit increase in tuition**, the expected count of the response variable ($\lambda$ = estimated mean number of burglaries):
+For a **1000 unit increase in tuition**:
 
-- tuition_thou: would decrease by a factor of approximately 0.9617923 holding all other variables constant.
+- tuition_thou: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would decrease by a factor of approximately 0.9617923 holding all other variables constant.
