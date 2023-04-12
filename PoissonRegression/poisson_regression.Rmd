@@ -17,7 +17,7 @@ Beyond Multiple Linear Regression
 Applied Generalized Linear Models and Multilevel Models in R
 Paul Roback and Julie Legler
 
-## 4.11.1 Conceptual Exercises
+## Conceptual Exercises
 Exercises 1-4 involve predicting a response using one or more explanatory variables, where these examples have response variables that are counts per some unit of time or space. List the response (both what is being counted and over what unit of time or space) and relevant explanatory variables.
 
 ### Q 4.11.1.2 
@@ -38,100 +38,411 @@ Has the number of deformed fish in randomly selected Minnesota lakes been affect
 - Explanatory Variable
   - $X_1$ is a continuous variable the amount of changes in trace minerals in the water over the last decade
 
+### Q 4.11.1.12 Methadone program recidivism.
 
-## 4.11.1.14 Credit card use
-A survey of 1,000 consumers asked respondents how many credit cards they use. Interest centers on the relationship between credit card use and income, in $10,000. The estimated coefficient for income is 2.1.
+Program facilitators keep track of the number of times their program’s patients relapse within five years of initial treatment. Data on 100 patients yielded a mean number of 2.8 relapses per patient within the five years of initial treatment.
 
-Poisson Regression Model
-$$log(\lambda_i) = \beta_0 + (2.1)X_1 $$
+#### Q 4.11.1.12. a
 
-### Q 4.11.1.14.a
-Identify the predictor and interpret the estimated coefficient for the predictor in this context.
+Define the response.
 
-- The predictor is income in $10,000 
-- The estimated coefficient for income of 2.1 means that for every $10,000 increase in income, the average number of credit cards used by a consumer increases by 2.1 (holding all other variables constant).
+- Response (Y) = the number of relapses per patient within the five years of initial treatment.
 
-### Q 4.11.1.14.b
-Describe how the assumption of linearity can be assessed in this example.
+#### Q 4.11.1.12. b
 
-- One approach could be plotting the logarithm of credit use on the y-axis and income (in units of $10,000). A linear (or curvilinear) should be observed. 
+What are the possible values for the response?
 
-### Q 4.11.1.14.c
-Suggest a way in which to assess the equal mean and variance assumption.
+- (0, $\infty$)
 
-- One approach could be to calculate the empirical mean and variance of number of credit cards used per income group (in values of $10,000). The means and variances in each group should be approximately equal or not too different in value. 
-- If the variance and means are different, the assumption may not be violated still as long as the ratio of the variance to the mean of the response variable (credit card use) is approximately constant across all levels of the predictor (income). This would mean that the variance of Y changes at the same rate as the mean as X changes.
+#### Q 4.11.1.12. c
+
+What does $\lambda$ represent?
+
+- $\lambda$ represents the average number of relapses per patient within the five years of initial treatment.
+
+
+## Guided Exercises
+
+### 4.11.2.1 College burglaries.
+
+We wish to build a regression model to describe the number of burglaries on a college campus in a year. Our population of interest will be U.S. liberal arts colleges.
+
+#### 4.11.2.1.a
+
+Describe why the response variable (Y= # burglaries on campus in a year) could be modeled by a Poisson distribution.
+
+- Poisson regression can be used to model λ, the average number of burglaries on campus in a year. The average number of burglaries on campus in a year is a discrete variable and Poisson models a discrete probability distribution. The burglaries on campus most likely are independent which supports the use of Poisson modeling. If the mean and variance of the number of burglaries on campus are relatively the same then that would also support the use of Poisson modeling.
   
-## 4.11.2.1  Elephant mating.
+#### 4.11.2.1.b
 
-How does age affect male elephant mating patterns? An article by Poole (1989) investigated whether mating success in male elephants increases with age and whether there is a peak age for mating success. To address this question, the research team followed 41 elephants for one year and recorded both their ages and their number of matings. The data (Ramsey and Schafer 2002) is found in elephant.csv, and the variables are:
+Describe explanatory variables which might explain differences in $\lambda_i$ = mean number of burglaries per year on campus i.
 
-- MATINGS (Y) = the number of matings in a given year
-- AGE (X) = the age of the elephant in years.
+- Public University vs Private University
+- Location (Country, State, City, Zipcode, etc.)
+- Ratio of campus security per number of student
 
-**Poisson Regression Model - Elephant Study**
+#### 4.11.2.1.c
 
-$\lambda_i$ = Average Number Of Matings per group of age, i.
+Consider a campus with an average of 5 burglaries per year. Use dpois() to sketch a plot of the distribution of Y for this campus.
 
-$$log(\lambda_i) = \beta_0 + \beta_1X_1 $$
+```{r}
+# set the lambda parameter to 5 (average of 5 burglaries per year)
+lambda <- 5
+
+# create a sequence of 30 possible values for Y
+y_seq <- 0:30
+
+# calculate the probability of each value of Y
+y_prob <- dpois(y_seq, lambda)
+
+# plot the Poisson distribution of Y
+plot(y_seq, y_prob, type = "h", lwd = 3, 
+     xlab = "Number of burglaries (Y)", ylab = "Probability",
+     main = "Poisson Distribution of Campus Burglaries")
+
+# Add a vertical line at the mean of the distribution
+abline(v = lambda, col = "red")
+```
+
+
+Use rpois() to verify that both the mean and variance of Y are given by $\lambda$ = 5.
+```{r}
+# generate 10,000 random samples from the Poisson distribution
+set.seed(0)
+y_samples <- rpois(n = 10000, lambda = 5)
+
+# mean of the samples
+mean(y_samples)
+# variance of the samples
+var(y_samples)
+```
+
+#### 4.11.2.1.d
+
+Consider a campus with an average of 20 burglaries per year and repeat (c).
+
+```{r}
+# set the lambda parameter to 20 (average of 20 burglaries per year)
+lambda <- 20
+
+# create a sequence of 30 possible values for Y
+y_seq <- 0:30
+
+# calculate the probability of each value of Y
+y_prob <- dpois(y_seq, lambda)
+
+# plot the Poisson distribution of Y
+plot(y_seq, y_prob, type = "h", lwd = 3, 
+     xlab = "Number of burglaries (Y)", ylab = "Probability",
+     main = "Poisson Distribution of Campus Burglaries")
+
+# Add a vertical line at the mean of the distribution
+abline(v = lambda, col = "red")
+```
+
+
+Use rpois() to verify that both the mean and variance of Y are given by $\lambda$ = 20.
+```{r}
+# generate 10,000 random samples from the Poisson distribution
+set.seed(0)
+y_samples <- rpois(n = 10000, lambda = 20)
+
+# mean of the samples
+mean(y_samples)
+# variance of the samples
+var(y_samples)
+```
+
+### 4.11.2.5 Campus crime. 
+
+The data set campuscrime09.csv contains the number of burglaries reported at a collection of 47 U.S. public universities with over 10,000 students in the year 2009. In addition, covariates are included which may explain differences in crime rates, including total number of students, percentage of men, average SAT and ACT test scores, and tuition.
 
 ```{r}
 # Loading the dataset
-file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/PoissonRegression/elephant.csv'
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/PoissonRegression/campuscrime09.csv'
 df = read.csv(file_path, header = TRUE)
 ```
 
+#### 4.11.2.5 a
+
+Perform an exploratory data analysis. Support your analysis with plots and summary statistics.
+
 ```{r}
-# dataset
+# Transforming categorical columns to factor data type.
+categorical_cols <- c('institution', 'state')
+df[categorical_cols] <- lapply(df[categorical_cols], as.factor)
+```
+
+```{r}
+# summary of dataset
 str(df)
 ```
 
 ```{r}
-# tidyverse 'group_by' and 'summarize' to get mean, var, and counts
-group_by(df, AGE) %>%
- summarise(mean=mean(MATINGS), var=var(MATINGS), n=n())
+# features of interest
+# total number of students, percentage of men, average SAT and ACT test scores, and tuition
+features <- c('total','pct.male', 'sat.tot', 'act.comp', 'tuition')
+multiple.func <- function(x) {
+      c(summary = summary(x), var = var(x))
+}
+sapply(df[features], multiple.func)
 ```
 
-### Q 4.11.2.1.a  
-Create a histogram of MATINGS.
+
+i) Analyze whether number of burglaries could be reasonably modeled with a Poisson distribution.
+
+To see if a Poisson distribution is appropriate, graphs of the total burglaries against each of the empirical mean of each feature variables are created below:
 
 ```{r}
-# Histogram of MATINGS
-ggplot(
-  data=df,
-  aes(x=AGE)
-) +
-geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.6) + 
-  labs(title="Elephant Matings",
-        x ="Age Group", y = "Count of Matings")
+# Create a matrix for plots
+par(mfrow = c(2, 3))
+plot(df[['total']], df$burg09, xlab='total', ylab="burg09", type = "h")
+plot(df[['pct.male']], df$burg09, xlab='pct.male', ylab="burg09", type = "h")
+plot(df[['sat.tot']], df$burg09, xlab='sat.tot', ylab="burg09", type = "h")
+plot(df[['act.comp']], df$burg09, xlab='act.comp', ylab="burg09", type = "h")
+plot(df[['tuition']], df$burg09, xlab='tuition', ylab="burg09", type = "h")
+
+# plotting burg09 against the empirical mean of each feature variable
+# for (feat in features) {
+#   plot(df[[feat]], df$burg09, xlab=feat, ylab="burg09")
+# }
 ```
 
-Is there preliminary evidence that number of matings could be modeled as a Poisson response? Explain.
+The graphs above suggest that the number of burglaries follow a Poisson distribution (discussed more below).
 
-- Age (X) ranges from 27 to 52 with many of the ages having mating counts between 3-6 when age is less than 37. The graph is right skewed like many Poisson distributions. Additionally, the graph suggests that the number of matings per age is not a normally distributed response.
+ii) Analyze which covariates you expect to be the best predictors of burglaries.
 
-### Q 4.11.2.1.b
+- Number of burglars appears to follow a Poisson distribution based on variables: tuition, act.comp (ACT score), sat.tot (SAT total score), and total (total number of students). For example, the plot with tuition appears to be a Poisson distribution with a right-skew which is commonly found in Poisson samples. Number of burglars against pct.male (percent male) does not appear to follow a Poisson distribution, the distribution instead appears to be a normal distribution.
 
-Plot MATINGS by AGE. Add a least squares line. 
+#### 4.11.2.5 b
+
+Consider a model with 4 predictors: act.comp + tuition + pct.male + total. Try fitting a linear regression with burg09 as the response.
 
 ```{r}
-ggplot(data = df, aes(x = AGE, y = MATINGS)) +
-  geom_point() +
-  geom_smooth()
+lm_model <- lm(burg09 ~ act.comp + tuition + pct.male + total, data=df)
+summary(lm_model)
 ```
 
-look at Residuals vs Fitted to see if the constant variance of Y assumption for Linear Regression is violated.
 ```{r}
-# residuals vs fitted plot
-plot(lm(MATINGS~AGE,data=df), which=1)
+# Create a matrix of four plots to check the assumptions of linear regression
+par(mfrow = c(1, 2))
+
+# Residuals vs. Fitted Values plot
+plot(lm_model, 1)
+
+# Normal Q-Q plot
+plot(lm_model, 2)
 ```
 
-Is there evidence that modeling matings using a linear regression with age might not be appropriate? Explain. (Hints: fit a smoother; check residual plots).
+Are there any concerns with this linear regression model?
 
-- There is evidence that Linear Regression for modeling matings by age is not appropriate. The Least Squares Line and Residual vs Fitted plot both suggest that the constant variance of Y (mating) over X (age) assumption of Linear Regression is violated, thus Linear Regression is not an appropriate model for this problem.
+- Yes there are concerns with this linear regression model. For example, the act.comp and pct.male p-values are much greater than the significance level of 0.05 using a 95% confidence. The p-values suggest that those covariates most likely do not have a significant linear relationship with the response (number of burglaries).
+- Additionally, the assumptions of linear regression are checked grahically above. The Residual vs Fitted plot has a quadratic pattern which suggests that $X$ most likely needs to be transformed to $X^2$. The stantard errors appear to be normally distributed in the QQ-plot which does satsify the assumption that the errors are approximately normally distributed.
+
+#### 4.11.2.5 c
+
+Run a Poisson regression model with the 4 predictors from (b). Interpret the coefficients for tuition and pct.male.
+
+```{r}
+poisson_model <- glm(burg09 ~ act.comp + tuition + pct.male + total, family=poisson, data=df)
+summary(poisson_model)
+```
+
+```{r}
+# Obtaining coefficient estimates
+coef_estimates <- coef(poisson_model)
+
+# Exponentiating coefficients to be able to interpret coefficients
+# Because exponentiating the coefficient allows us 
+# to obtain the multiplicative factor by which the mean count changes
+exp_coef <- exp(coef_estimates)
+exp_coef
+```
+
+For a **1 unit increase in the predictor variable**, the expected count of the response variable ($\lambda$ = estimated mean number of burglaries):
+
+- act.comp: would increase by a factor of approximately 1.0549809 holding all other variables constant.
+- tuition: would decrease by a factor of approximately 0.9999610 holding all other variables constant.
+- pct.male: would decrease by a factor of approximately 0.9869548 holding all other variables constant.
+- total: would increase by a factor of approximately 1.0000267 holding all other variables constant.
+
+#### 4.11.2.5 d
+
+Replace tuition with tuition in thousands in your model from (c) – i.e., tuition.thous=tuition/1000. How does your new model compare to your model in (c)? Interpret the coefficient for tuition.thous.
+
+```{r}
+# add a new variable to the dataframe that is a tuition divided by 1000
+df$tuition.thous <- df$tuition / 1000
+
+poisson_model_2 <- glm(burg09 ~ act.comp + tuition.thous + pct.male + total, family=poisson, data=df)
+summary(poisson_model_2)
+```
+
+```{r}
+# Obtaining coefficient estimates
+coef_estimates_2 <- coef(poisson_model_2)
+
+# Exponentiating coefficients to be able to interpret coefficients
+exp_coef_2 <- exp(coef_estimates_2)
+exp_coef_2
+```
+
+For a **1000 unit increase in the predictor variable**, the expected count of the response variable ($\lambda$ = estimated mean number of burglaries):
+
+- act.comp: would increase by a factor of approximately 1.0549809 holding all other variables constant.
+- tuition: would decrease by a factor of approximately 0.9999610 holding all other variables constant.
+- pct.male: would decrease by a factor of approximately 0.9869548 holding all other variables constant.
+- total: would increase by a factor of approximately 1.0000267 holding all other variables constant.
+
+<!-- ### 4.11.1.14 Credit card use -->
+<!-- A survey of 1,000 consumers asked respondents how many credit cards they use. Interest centers on the relationship between credit card use and income, in $10,000. The estimated coefficient for income is 2.1. -->
+
+<!-- Poisson Regression Model -->
+<!-- $$log(\lambda_i) = \beta_0 + (2.1)X_1 $$ -->
+
+<!-- #### Q 4.11.1.14.a -->
+<!-- Identify the predictor and interpret the estimated coefficient for the predictor in this context. -->
+
+<!-- - The predictor is income in $10,000  -->
+<!-- - The estimated coefficient for income of 2.1 means that for every $10,000 increase in income, the average number of credit cards used by a consumer increases by 2.1 (holding all other variables constant). -->
+
+<!-- #### Q 4.11.1.14.b -->
+<!-- Describe how the assumption of linearity can be assessed in this example. -->
+
+<!-- - One approach could be plotting the logarithm of credit use on the y-axis and income (in units of $10,000). A linear (or curvilinear) should be observed.  -->
+
+<!-- #### Q 4.11.1.14.c -->
+<!-- Suggest a way in which to assess the equal mean and variance assumption. -->
+
+<!-- - One approach could be to calculate the empirical mean and variance of number of credit cards used per income group (in values of $10,000). The means and variances in each group should be approximately equal or not too different in value.  -->
+<!-- - If the variance and means are different, the assumption may not be violated still as long as the ratio of the variance to the mean of the response variable (credit card use) is approximately constant across all levels of the predictor (income). This would mean that the variance of Y changes at the same rate as the mean as X changes. -->
+
+<!-- ## 4.11.2.2  Elephant mating. -->
+
+<!-- How does age affect male elephant mating patterns? An article by Poole (1989) investigated whether mating success in male elephants increases with age and whether there is a peak age for mating success. To address this question, the research team followed 41 elephants for one year and recorded both their ages and their number of matings. The data (Ramsey and Schafer 2002) is found in elephant.csv, and the variables are: -->
+
+<!-- - MATINGS (Y) = the number of matings in a given year -->
+<!-- - AGE (X) = the age of the elephant in years. -->
+
+<!-- **Poisson Regression Model - Elephant Study** -->
+
+<!-- $\lambda_i$ = Average Number Of Matings per group of age, i. -->
+
+<!-- $$log(\lambda_i) = \beta_0 + \beta_1X_1 $$ -->
+
+<!-- ```{r} -->
+<!-- # Loading the dataset -->
+<!-- file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/PoissonRegression/elephant.csv' -->
+<!-- df = read.csv(file_path, header = TRUE) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # dataset -->
+<!-- str(df) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # tidyverse 'group_by' and 'summarize' to get mean, var, and counts -->
+<!-- group_by(df, AGE) %>% -->
+<!--  summarise(mean=mean(MATINGS), var=var(MATINGS), n=n()) -->
+<!-- ``` -->
+
+<!-- ### Q 4.11.2.2.a -->
+<!-- Create a histogram of MATINGS. -->
+
+<!-- ```{r} -->
+<!-- # Histogram of MATINGS -->
+<!-- ggplot( -->
+<!--   data=df, -->
+<!--   aes(x=AGE) -->
+<!-- ) + -->
+<!-- geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.6) + -->
+<!--   labs(title="Elephant Matings", -->
+<!--         x ="Age Group", y = "Count of Matings") -->
+<!-- ``` -->
+
+<!-- Is there preliminary evidence that number of matings could be modeled as a Poisson response? Explain. -->
+
+<!-- - Age (X) ranges from 27 to 52 with many of the ages having mating counts between 3-6 when age is less than 37. The graph is right skewed like many Poisson distributions. Additionally, the graph suggests that the number of matings per age is not a normally distributed response. -->
+
+<!-- ### Q 4.11.2.1.b -->
+
+<!-- Plot MATINGS by AGE. Add a least squares line.  -->
+
+<!-- ```{r} -->
+<!-- ggplot(data = df, aes(x = AGE, y = MATINGS)) + -->
+<!--   geom_point() + -->
+<!--   geom_smooth() -->
+<!-- ``` -->
+
+<!-- look at Residuals vs Fitted to see if the constant variance of Y assumption for Linear Regression is violated. -->
+<!-- ```{r} -->
+<!-- # residuals vs fitted plot -->
+<!-- plot(lm(MATINGS~AGE,data=df), which=1) -->
+<!-- ``` -->
+
+<!-- Is there evidence that modeling matings using a linear regression with age might not be appropriate? Explain. (Hints: fit a smoother; check residual plots). -->
+
+<!-- - There is evidence that Linear Regression for modeling matings by age is not appropriate. The Least Squares Line and Residual vs Fitted plot both suggest that the constant variance of Y (mating) over X (age) assumption of Linear Regression is violated, thus Linear Regression is not an appropriate model for this problem. -->
 
 <!-- Transforming categorical columns to factor data type. -->
 <!-- ```{r} -->
 <!-- categorical_cols <- c('Smoke', 'Overwt') -->
 <!-- df[categorical_cols] <- lapply(df[categorical_cols], as.factor) -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- # tidyverse 'group_by' and 'summarize' to get mean, var, and counts per state -->
+<!-- # group_by(df, state) %>% -->
+<!-- #  summarise(mean=mean(burg09), var=var(burg09), n=n()) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # mean summary stats for `total` column -->
+<!-- # mean(df$total) -->
+<!-- #  -->
+<!-- # # variance summary stats for `total` column -->
+<!-- # var(df$total) -->
+<!-- #  -->
+<!-- # # summary stats for `total` column -->
+<!-- # summary(df$total) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # Use the quantile() function to determine the break values for creating intervals -->
+<!-- # breaks <- quantile(df$total, probs = seq(0, 1, by = 0.25)) -->
+<!-- # breaks -->
+<!-- # Use the cut() function to create the intervals and assign them to a new column -->
+<!-- #df$interval <- cut(df$total, breaks, include.lowest = TRUE, right = FALSE) -->
+
+<!-- # View the resulting data frame -->
+<!-- #head(df) -->
+
+<!-- # # Create a vector of counts ranging from 0 to 100 -->
+<!-- # counts <- c(0, 5, 15, 23, 42, 56, 71, 89, 97, 100) -->
+<!-- #  -->
+<!-- # # Define the number of intervals you want to create -->
+<!-- # num_intervals <- 10 -->
+<!-- #  -->
+<!-- # # Use the quantile() function to determine the break values -->
+<!-- # breaks <- quantile(counts, probs = seq(0, 1, by = 1/num_intervals)) -->
+<!-- #  -->
+<!-- # # Use the cut() function to create the intervals and assign them to a new column -->
+<!-- # df <- data.frame(total = counts, interval = cut(counts, breaks, include.lowest = TRUE, right = FALSE)) -->
+<!-- #  -->
+<!-- # # View the resulting data frame -->
+<!-- # df -->
+<!-- ``` -->
+
+<!-- Create a histogram of MATINGS. -->
+<!-- ```{r} -->
+<!-- # Histogram of MATINGS -->
+<!-- ggplot( -->
+<!--   data=df, -->
+<!--   aes(x=AGE) -->
+<!-- ) + -->
+<!-- geom_histogram(fill="#69b3a2", color="#e9ecef", alpha=0.6) + -->
+<!--   labs(title="Elephant Matings", -->
+<!--         x ="Age Group", y = "Count of Matings") -->
 <!-- ``` -->
