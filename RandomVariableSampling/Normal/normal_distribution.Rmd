@@ -25,7 +25,7 @@ a) Calculate $P(|X_1-X_2|>2)$
 
 
 ```{r}
-(1 - pnorm(2/sqrt(8)))
+1 - pnorm(2/sqrt(8))
 ```
 
 b) Calculate $P(|Y_1-Y_2|>2)$
