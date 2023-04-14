@@ -72,4 +72,133 @@ mean(abs(y) > 2)
 ```
 
 ## Q2
-Find a matrix A such that AY gives the di
+
+a) Find a matrix $A$ such that $AY$ gives the difference of mean vectors between iris setosa and iris versicolor
+```{r}
+# Extracting the continuous feature columns from the dataset, 1 - 4.
+# and select only setosa and versicolor species
+iris_sub <- subset(iris, Species %in% c("setosa", "versicolor"))
+
+# Compute the mean vector for setosa and versicolor
+mean_setosa <- colMeans(subset(iris_sub, Species == "setosa")[, 1:4])
+mean_versicolor <- colMeans(subset(iris_sub, Species == "versicolor")[, 1:4])
+
+# Compute the difference of mean vectors
+diff_mean <- mean_setosa - mean_versicolor
+diff_mean
+
+# Create a matrix A such that AY = diff_mean
+A <- diag(4) # Identity matrix with dimension 4x4
+A
+dim(A)
+
+# Put Y into a matrix
+Y <- as.matrix(rbind(mean_setosa, mean_versicolor))
+Y
+dim(Y)
+
+AY <- A %*% t(Y)
+AY
+```
+
+\newpage
+
+b) Find a matrix $B$ such that $YB$ is column-standardized, i.e., the standard deviation of each column/feature is 1.
+```{r}
+# Apply sd() function to the columns (2nd dim)
+Z_y <- apply(Y, 2, sd)
+Z_y
+
+# Matrix B such that YB is column-standardized
+B <- diag(2) / Z_y
+B
+
+dim(Y)
+dim(B)
+
+# Compute YB
+YB <- t(Y) %*% B
+
+YB
+```
+
+\newpage
+
+c) Check the following
+  + Let $C=\mathbf I_{150} - \frac{1}{150}J$, where $J_{150\times 150}$ is an all-ones matrices . Use R to verify that $CY$ centers each column/feature.
+```{r}  
+C=diag(1,150) - (1/150) * matrix(1, 150, 150)
+
+# define Y to be all of Iris dataset
+Y=as.matrix(iris[, 1:4])
+
+dim(C)
+dim(Y)
+
+CY <- C %*% Y
+
+dim(CY)
+
+# Compute column means of CY
+col_means_CY <- colMeans(CY)
+
+# Verify that column means of CY are all approximately zero
+all.equal(col_means_CY, rep(0, 4), check.names = FALSE)
+```
+
+\newpage
+
+  + Let $S$ be the sample covariance matrix. Use R to verify that each column of $CYS^{-1/2}$ has been centered and standardized (in fact, the columns have also been de-correlated).
+```{r}
+# Load the qtl2pleio package
+#library(qtl2pleio)
+
+Y <- as.matrix(iris[, 1:4])
+
+# Compute the sample covariance matrix S
+S <- cov(Y)
+
+# Using eigen decomposition of the covariance matrix S
+eig <- eigen(S)
+D <- diag(1/sqrt(eig$values))
+# Compute S^(-1/2)
+S_inv_sqrt <- eig$vectors %*% D %*% t(eig$vectors)
+
+#S_inv_sqrt <- calc_invsqrt_mat(S)
+CYS_inv_sqrt <- C %*% Y %*% S_inv_sqrt
+
+colMeans(CYS_inv_sqrt)
+# Verify that column means of CY are all approximately zero
+all.equal(colMeans(CYS_inv_sqrt), rep(0, 4), check.names = FALSE)
+
+apply(CYS_inv_sqrt, 2, sd)
+# Verify that column means of CY are all approximately zero
+all.equal(apply(CYS_inv_sqrt, 2, sd), rep(1, 4), check.names = FALSE)
+```
+
+\newpage
+
+## Q3
+
+Choose a picture you like and conduct approximations using singular value decomposition (SVD).
+```{r}
+library(jpeg)
+img=readJPEG("./lion.jpg", native = FALSE)
+img=img[,,1]
+dim(img)
+
+par(mfrow=c(2,2))
+
+image(img, col=gray(c(0:10)/10))
+obj.bm=svd(img)
+n=10
+img.approx=obj.bm$u[,1:n]%*% diag(obj.bm$d[1:n]) %*% t(obj.bm$v[,1:n])
+image(img.approx, main="rank 10", col=gray(c(0:10)/10))
+n=20
+img.approx=obj.bm$u[,1:n]%*% diag(obj.bm$d[1:n]) %*% t(obj.bm$v[,1:n])
+image(img.approx, main="rank 20", col=gray(c(0:10)/10))
+n=30
+img.approx=obj.bm$u[,1:n]%*% diag(obj.bm$d[1:n]) %*% t(obj.bm$v[,1:n])
+image(img.approx, main="rank 30", col=gray(c(0:10)/10))
+```
+
