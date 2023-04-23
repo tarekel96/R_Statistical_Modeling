@@ -10,7 +10,7 @@ output: html_document
 library(tidyverse)
 library(ggplot2)
 library(dplyr)
-library(hrbrthemes)
+library(xtable)
 ```
 
 Beyond Multiple Linear Regression

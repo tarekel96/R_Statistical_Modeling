@@ -1,0 +1,77 @@
+---
+title: "Airbnb NYC"
+author: "Tarek El-Hajjaoui"
+date: "2023-04-23"
+output: html_document
+---
+
+```{r, echo=FALSE, results="hide", warning=FALSE, message=FALSE}
+# library
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+```
+
+### Q 4.11.3.1 Airbnb in NYC
+Perform an EDA, build a model, and interpret model coefficients to describe variation in the number of reviews (a proxy for the number of rentals, which is not available) as a function of the variables provided. Don’t forget to consider an offset, if needed.
+
+```{r}
+# Loading the dataset
+file_path = './NYCairbnb.csv'
+df = read.csv(file_path, header = TRUE)
+```
+
+Explanatory Data Analysis (EDA)
+
+```{r}
+str(df)
+```
+
+Summary statistics
+```{r}
+# Some features of interest (except, number of reviews, is y)
+multiple.func <- function(x) {
+      round(c(summary = summary(x), var = var(x)), 2)
+}
+features <- c('number_of_reviews', 'price', 'days')
+sapply(df[features], multiple.func)
+
+features <- c('bedrooms', 'bathrooms')
+sapply(df[features], multiple.func)
+
+features <- c('review_scores_cleanliness', 'review_scores_location', 'review_scores_value')
+sapply(df[features], multiple.func)
+```
+
+Preprocessing - transforming data types
+```{r}
+# Transforming categorical columns to factor data type.
+categorical_cols <- c('room_type', 'bathrooms', 'bedrooms', 'review_scores_cleanliness', 'review_scores_location', 'review_scores_value', 'instant_bookable')
+df[categorical_cols] <- lapply(df[categorical_cols], as.factor)
+
+# Transforming date columns
+date_cols <- c('last_scraped', 'host_since')
+df[date_cols] <- lapply(df[date_cols], as.Date)
+```
+
+```{r}
+# Ensure datatypes are correct now
+str(df)
+```
+
+Checking if the data justifies a Poisson regression model
+```{r}
+# Create a matrix for plots
+par(mfrow = c(1, 2))
+plot(df[['price']], df$number_of_reviews, xlab='price', ylab="number_of_reviews", type = "h", xlim=c(0,2000))
+plot(df[['days']], df$number_of_reviews, xlab='days', ylab="number_of_reviews", type = "h", xlim=c(0,3500))
+
+par(mfrow = c(2, 3))
+plot(df[['bedrooms']], df$number_of_reviews, xlab='bedrooms', ylab="number_of_reviews", type = "h")
+plot(df[['bathrooms']], df$number_of_reviews, xlab='bathrooms', ylab="number_of_reviews", type = "h")
+plot(df[['review_scores_cleanliness']], df$number_of_reviews, xlab='review_scores_cleanliness', ylab="number_of_reviews", type = "h")
+plot(df[['review_scores_location']], df$number_of_reviews, xlab='review_scores_location', ylab="number_of_reviews", type = "h")
+plot(df[['review_scores_value']], df$number_of_reviews, xlab='review_scores_value', ylab="number_of_reviews", type = "h")
+```
+
+Most of the graphs above suggest that the number of number of reviews follow a Poisson distribution (discussed more below).
