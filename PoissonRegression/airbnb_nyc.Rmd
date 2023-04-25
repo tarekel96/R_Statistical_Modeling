@@ -29,7 +29,7 @@ df = read.csv(file_path, header = TRUE)
 str(df)
 ```
 
-#### Explanatory Data Analysis (EDA)
+####  Q 4.11.3.1 Airbnb in NYC - Explanatory Data Analysis (EDA)
 
 Preprocessing - transforming data types
 ```{r}
@@ -49,8 +49,8 @@ Plotting the $Y$, number of reviews.
 ggplot(df, aes(number_of_reviews)) +
   geom_histogram(binwidth = .25, color = "black", fill = "white") +
   xlim(0, 75) +
-  xlab("Number of reviews.") +
-  ylab("Count of the number of reviews.")
+  xlab("Number of reviews") +
+  ylab("Count of the number of reviews")
 ```
 
 - Number of reviews appears to follow a Poisson distribution given by the right-skewed histogram above. As the number of reviews increases, the count of the number of reviews decreases.
@@ -83,21 +83,21 @@ k3
 ```
 There is some evidence of a violation of the mean=variance assumption. It appears that the variance is smaller than the mean for lower number of reviews, while the variance is greater than the mean for higher number of reviews. 
 
-The Poisson regression model implies that log($\lambda_i$) is a linear function of feature variables; i.e., $log(\lambda_i)=\beta_0+\beta_1\textrm{feature}_i$. Therefore, to check the linearity assumption for Poisson regression, we would like to plot log($\lambda_i$) by $feature_i$.
+The Poisson regression model implies that log($\lambda_i$) is a linear function of feature variables; i.e., $log(\lambda_i)=\beta_0+\beta_i\textrm{feature}_i$. Therefore, to check the linearity assumption for Poisson regression, we would like to plot log($\lambda_i$) by $\beta_i$.
 
 ```{r}
 # Remove rows where x is null
 df_no_nulls <- df[complete.cases(df), ]
 
-sumStats <- df_no_nulls %>% group_by(review_scores_cleanliness) %>% 
+sumStats <- df_no_nulls %>% group_by(review_scores_cleanliness) %>%
   summarise(mn_reviews = mean(number_of_reviews),
             logmn_reviews = log(mn_reviews), n=n())
 
-sumStats2 <- df_no_nulls %>% group_by(review_scores_location) %>% 
+sumStats2 <- df_no_nulls %>% group_by(review_scores_location) %>%
   summarise(mn_reviews = mean(number_of_reviews),
             logmn_reviews = log(mn_reviews), n=n())
 
-sumStats3 <- df_no_nulls %>% group_by(review_scores_value) %>% 
+sumStats3 <- df_no_nulls %>% group_by(review_scores_value) %>%
   summarise(mn_reviews = mean(number_of_reviews),
             logmn_reviews = log(mn_reviews), n=n())
 
@@ -105,40 +105,98 @@ plot1 <- ggplot(sumStats, aes(x=review_scores_cleanliness, y=logmn_reviews)) +
   geom_point()+
   geom_smooth()+
   xlab("review_scores_cleanliness") +
-  ylab("log(n_reviews)") 
+  ylab("log(n_reviews)")
 
 plot2 <- ggplot(sumStats2, aes(x=review_scores_location, y=logmn_reviews)) +
   geom_point()+
   geom_smooth()+
   xlab("review_scores_location") +
-  ylab("log(n_reviews)") 
+  ylab("log(n_reviews)")
 
 plot3 <- ggplot(sumStats3, aes(x=review_scores_value, y=logmn_reviews)) +
   geom_point()+
   geom_smooth()+
   xlab("review_scores_value") +
-  ylab("log(n_reviews)") 
+  ylab("log(n_reviews)")
 
 # Arrange the plots in a row using grid.arrange()
 grid.arrange(plot1, plot2, plot3, ncol = 2)
 ```
 
+The graphs above suggest that the number of reviews follow a Poisson distribution. The $log(\lambda)$ (where $\lambda$ = mean number of reviews per group of $\beta_i$) has a linear pattern which suggests that Poisson is appropriate.
+
+Plotting $Y$, number of reviews against log(days).
+```{r}
+ggplot(df, aes(x=log(days), y=number_of_reviews)) +
+  geom_point() +
+  xlab("log(days)") +
+  ylab("number of reviews")
+```
+
+The expected number of reviews is proportional to the exposure time, log(days), and the rate of increase in the number of reviews appears to be the same for all units. Therefore an offset on log(days) may be needed in modeling. This can be further tested with the Likelihood Ratio Test (LRT). 
+
+#### Q 4.11.3.1 Airbnb in NYC - Model Building
+
+Creating 2 models with the same predictors, but the first reduced model does not contain an offset variable of log(days).
+```{r}
+no_offset_model <- glm(number_of_reviews ~ review_scores_cleanliness + review_scores_location + review_scores_value,
+                     data = df, family = poisson)
+full_poisson_model <- glm(number_of_reviews ~ review_scores_cleanliness + review_scores_location + review_scores_value + offset(log(days)),
+                     data = df, family = poisson)
+```
+
+To test out if the full model (model with the offset variable) is needed, the Likelihood Ratio Test (LRT) will be performed. Likelihood refers to the probability of observing the data given the model and the estimated parameters. The ANOVA (Analysis of variance) will be used to conduct the LRT.
+```{r}
+# Perform the likelihood ratio test using anova()
+anova(no_offset_model, full_poisson_model, test = "LRT")
+```
+
+```{r}
+# Calculate test statistic and p-value
+test_stat <- 2 * (logLik(full_poisson_model) - logLik(no_offset_model))
+test_stat
+#p_value <- pchisq(test_stat, df = 1, lower.tail = FALSE)
+#p-value
+```
+
+The test statistic from the Log Likelihood test is too large to calculate a p-value from the Chi-square distribution and so a different method, the AIC metric, will be used to compare the models.
+
+```{r}
+AIC(no_offset_model)
+AIC(full_poisson_model)
+```
+
+Coefficient Interpretation
+```{r}
+# Obtaining coefficient estimates
+coef_estimates <- coef(full_poisson_model)
+
+# Exponentiating coefficients to be able to interpret coefficients
+# Because exponentiating the coefficient allows us 
+# to obtain the multiplicative factor by which the mean count changes
+exp_coef <- exp(coef_estimates)
+exp_coef
+```
+
+For a **1 unit increase in the predictor variable**:
+
+- act.comp: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would increase by a factor of approximately 1.0549809 holding all other variables constant.
+- tuition: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would decrease by a factor of approximately 0.9999610 holding all other variables constant.
+- pct.male: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would decrease by a factor of approximately 0.9869548 holding all other variables constant.
+- total: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would increase by a factor of approximately 1.0000267 holding all other variables constant.
 
 <!-- ```{r} -->
 <!-- # Create a matrix for plots -->
 <!-- # par(mfrow = c(1, 1)) -->
 
-
 <!-- # Set up the plotting device with a larger width -->
-<!-- options(repr.plot.width = 8, repr.plot.height = 4) -->
+<!-- #options(repr.plot.width = 8, repr.plot.height = 4) -->
 <!-- # Set the margins for each individual plot -->
 <!-- par(mar = c(4, 4, 2, 1),mfrow = c(2, 2)) -->
-<!-- plot(df[['review_scores_cleanliness']], df$number_of_reviews, xlab='review_scores_cleanliness', ylab="number_of_reviews", type = "h") -->
+
+<!-- plot(df[['review_scores_cleanliness']], df$number_of_reviews, xlab='review_scores_cleanliness', ylab="n_reviews", type = "h") -->
 <!-- plot(df[['review_scores_location']], df$number_of_reviews, xlab='review_scores_location', ylab="number_of_reviews", type = "h") -->
 <!-- plot(df[['review_scores_value']], df$number_of_reviews, xlab='review_scores_value', ylab="number_of_reviews", type = "h") -->
-<!-- plot(df[['days']], df$number_of_reviews, xlab='days', ylab="number_of_reviews", type = "p", xlim=c(0,3500)) -->
 <!-- ``` -->
 
-Most of the graphs above suggest that the number of reviews follow a Poisson distribution (discussed more below).
 
-- Number of reviews appears to follow a Poisson distribution based on variables: price, number of bedrooms, number of bathrooms, review score cleanliness, review scores location, and review scores value. For example, the plot with price appears to be a Poisson distribution with a right-skew which is commonly found in Poisson samples. On the other hand, number of days the unit has been listed does not appear to follow a Poisson distribution.
