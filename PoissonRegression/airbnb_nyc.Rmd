@@ -145,28 +145,17 @@ full_poisson_model <- glm(number_of_reviews ~ review_scores_cleanliness + review
                      data = df, family = poisson)
 ```
 
-To test out if the full model (model with the offset variable) is needed, the Likelihood Ratio Test (LRT) will be performed. Likelihood refers to the probability of observing the data given the model and the estimated parameters. The ANOVA (Analysis of variance) will be used to conduct the LRT.
-```{r}
-# Perform the likelihood ratio test using anova()
-anova(no_offset_model, full_poisson_model, test = "LRT")
-```
 
 ```{r}
-# Calculate test statistic and p-value
-test_stat <- 2 * (logLik(full_poisson_model) - logLik(no_offset_model))
-test_stat
-#p_value <- pchisq(test_stat, df = 1, lower.tail = FALSE)
-#p-value
+par(mfrow = c(1, 2))
+plot(no_offset_model, 1, main = "Residuals vs Fitted (No Offset)")
+plot(full_poisson_model, 1, main = "Residuals vs Fitted (Has Offset)")
+
 ```
 
-The test statistic from the Log Likelihood test is too large to calculate a p-value from the Chi-square distribution and so a different method, the AIC metric, will be used to compare the models.
+The left-skewed pattern in the residuals versus fitted values plot for the model that does not contain the offset variable suggests that the model is not fully capturing the variation in the data. Specifically, it could indicate that the model is underestimating the number of low-number-of-reviews properties.The left-skew pattern is still observed in the offset model, but not as apparent. The offset model will be used as it helps with the issue of overdispersion that occurs due the different number of samples for the different feature groups.
 
-```{r}
-AIC(no_offset_model)
-AIC(full_poisson_model)
-```
-
-Coefficient Interpretation
+#### Q 4.11.3.1 Airbnb in NYC - Coefficient Interpretation
 ```{r}
 # Obtaining coefficient estimates
 coef_estimates <- coef(full_poisson_model)
@@ -175,15 +164,16 @@ coef_estimates <- coef(full_poisson_model)
 # Because exponentiating the coefficient allows us 
 # to obtain the multiplicative factor by which the mean count changes
 exp_coef <- exp(coef_estimates)
-exp_coef
+round(exp_coef, 4)
 ```
+
+Because we are working with categorical features (review_scores_cleanliness, review_scores_location, review_scores_values) each of their factors are considered a covariate in the Poisson models. Each coefficient was exponentiated to be able to interpret coefficients, which allows us to obtain the multiplicative factor by which the mean count changes. Some of the interpretations are translated below. 
 
 For a **1 unit increase in the predictor variable**:
 
-- act.comp: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would increase by a factor of approximately 1.0549809 holding all other variables constant.
-- tuition: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would decrease by a factor of approximately 0.9999610 holding all other variables constant.
-- pct.male: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would decrease by a factor of approximately 0.9869548 holding all other variables constant.
-- total: the expected the response variable ($\lambda$ = estimated mean number of burglaries) would increase by a factor of approximately 1.0000267 holding all other variables constant.
+- review_scores_cleanliness4: the expected the response variable ($\lambda$ = estimated mean number of reviews) would decrease by a factor of approximately 0.7714 holding all other variables constant.
+- review_scores_location8: the expected the response variable ($\lambda$ = estimated mean number of reviews) would increase by a factor of approximately 1.1514 holding all other variables constant.
+- review_scores_value9: the expected the response variable ($\lambda$ = estimated mean number of reviews) would decrease by a factor of approximately 4.4573 holding all other variables constant.
 
 <!-- ```{r} -->
 <!-- # Create a matrix for plots -->
@@ -199,4 +189,31 @@ For a **1 unit increase in the predictor variable**:
 <!-- plot(df[['review_scores_value']], df$number_of_reviews, xlab='review_scores_value', ylab="number_of_reviews", type = "h") -->
 <!-- ``` -->
 
+<!-- To test out if the full model (model with the offset variable) is needed, the Likelihood Ratio Test (LRT) will be performed. Likelihood refers to the probability of observing the data given the model and the estimated parameters. The ANOVA (Analysis of variance) will be used to conduct the LRT. -->
+<!-- ```{r} -->
+<!-- # Perform the likelihood ratio test using anova() -->
+<!-- anova(no_offset_model, full_poisson_model, test = "LRT") -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # Calculate test statistic and p-value -->
+<!-- test_stat <- 2 * (logLik(full_poisson_model) - logLik(no_offset_model)) -->
+<!-- test_stat -->
+<!-- #p_value <- pchisq(test_stat, df = 1, lower.tail = FALSE) -->
+<!-- #p-value -->
+<!-- ``` -->
+
+<!-- The test statistic from the Log Likelihood test is too large to calculate a p-value from the Chi-square distribution and so a different method, the AIC metric, will be used to compare the models. -->
+
+<!-- ```{r} -->
+<!-- # Compute AIC and BIC -->
+<!-- results <- data.frame( -->
+<!--   model = c("no_offset_model", "full_poisson_model"), -->
+<!--   df = AIC(no_offset_model, full_poisson_model)$df, -->
+<!--   AIC = AIC(no_offset_model, full_poisson_model)$AIC, -->
+<!--   BIC = BIC(no_offset_model, full_poisson_model)$BIC -->
+<!-- ) -->
+
+<!-- results -->
+<!-- ``` -->
 
