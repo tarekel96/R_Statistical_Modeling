@@ -48,10 +48,14 @@ Plotting the $Y$, number of reviews.
 ```{r}
 ggplot(df, aes(number_of_reviews)) +
   geom_histogram(binwidth = .25, color = "black", fill = "white") +
-  xlim(0, 75) +
+  xlim(0, 100) +
   xlab("Number of reviews") +
   ylab("Count of the number of reviews")
+
+max(df[['number_of_reviews']])
 ```
+
+**Note:** X-axis has been condensed for visual reasons, however, there are some (not many) AirBnB observations with number of reviews ranging from 100-421.
 
 - Number of reviews appears to follow a Poisson distribution given by the right-skewed histogram above. As the number of reviews increases, the count of the number of reviews decreases.
 
@@ -125,15 +129,30 @@ grid.arrange(plot1, plot2, plot3, ncol = 2)
 
 The graphs above suggest that the number of reviews follow a Poisson distribution. The $log(\lambda)$ (where $\lambda$ = mean number of reviews per group of $\beta_i$) has a linear pattern which suggests that Poisson is appropriate.
 
+#### Q 4.11.3.1 Airbnb in NYC - Offset
+
+In general, when using a Poisson regression model, the variable to be offset should be a measure of exposure or effort. For this dataset, the variable to be offset would be a measure of the time that each rental unit is available for rent which is *days*.
+
 Plotting $Y$, number of reviews against log(days).
 ```{r}
-ggplot(df, aes(x=log(days), y=number_of_reviews)) +
+p1 <- ggplot(df, aes(x = days, y = number_of_reviews)) +
+  geom_point() +
+  xlab("days") +
+  ylab("number of reviews")
+
+p2 <- ggplot(df, aes(x=log(days), y=number_of_reviews)) +
   geom_point() +
   xlab("log(days)") +
-  ylab("number of reviews")
+  ylab("rate of number of reviews")
+
+# Arrange the plots in a row using grid.arrange()
+grid.arrange(p1, p2, ncol = 2)
+
+# calculate correlation
+cor(df$days, df$number_of_reviews)
 ```
 
-The expected number of reviews is proportional to the exposure time, log(days), and the rate of increase in the number of reviews appears to be the same for all units. Therefore an offset on log(days) may be needed in modeling. This can be further tested with the Likelihood Ratio Test (LRT). 
+The rate of increase in the number of reviews is exponential which suggets that log(days) may be needed to offset for the non-constant rate of number of reviews. The offset variable will be tested further in model building. 
 
 #### Q 4.11.3.1 Airbnb in NYC - Model Building
 
@@ -145,20 +164,26 @@ full_poisson_model <- glm(number_of_reviews ~ review_scores_cleanliness + review
                      data = df, family = poisson)
 ```
 
-
 ```{r}
-par(mfrow = c(1, 2))
-plot(no_offset_model, 1, main = "Residuals vs Fitted (No Offset)")
-plot(full_poisson_model, 1, main = "Residuals vs Fitted (Has Offset)")
+
+# data frame to summarize model comparisons
+model_stats_df <- data.frame(
+  Model = c("No Offset", "Offset"),
+  Residual_Deviance = c(deviance(no_offset_model),deviance(full_poisson_model)),
+  AIC = c(AIC(no_offset_model), AIC(full_poisson_model)),
+  BIC = c(BIC(no_offset_model), BIC(full_poisson_model))
+)
+
+model_stats_df
 
 ```
 
-The left-skewed pattern in the residuals versus fitted values plot for the model that does not contain the offset variable suggests that the model is not fully capturing the variation in the data. Specifically, it could indicate that the model is underestimating the number of low-number-of-reviews properties.The left-skew pattern is still observed in the offset model, but not as apparent. The offset model will be used as it helps with the issue of overdispersion that occurs due the different number of samples for the different feature groups.
+The model without the offset has lower residual deviances, AIC, and BIC which suggests the model with the offset is not a better fit for the data than the model without the offset. This is because the residual deviance measures the lack of fit of the model to the data, and AIC/BIC provides a measure of the quality of the model in terms of goodness of fit and parsimony. A higher residual deviance and AIC both suggest a worse model fit, thus the model without offset will be used.
 
 #### Q 4.11.3.1 Airbnb in NYC - Coefficient Interpretation
 ```{r}
 # Obtaining coefficient estimates
-coef_estimates <- coef(full_poisson_model)
+coef_estimates <- coef(no_offset_model)
 
 # Exponentiating coefficients to be able to interpret coefficients
 # Because exponentiating the coefficient allows us 
@@ -171,9 +196,9 @@ Because we are working with categorical features (review_scores_cleanliness, rev
 
 For a **1 unit increase in the predictor variable**:
 
-- review_scores_cleanliness4: the expected the response variable ($\lambda$ = estimated mean number of reviews) would decrease by a factor of approximately 0.7714 holding all other variables constant.
-- review_scores_location8: the expected the response variable ($\lambda$ = estimated mean number of reviews) would increase by a factor of approximately 1.1514 holding all other variables constant.
-- review_scores_value9: the expected the response variable ($\lambda$ = estimated mean number of reviews) would decrease by a factor of approximately 4.4573 holding all other variables constant.
+- *review_scores_cleanliness4*: the expected the response variable ($\lambda$ = estimated mean number of reviews) would decrease by a factor of approximately 0.7636 holding all other variables constant.
+- *review_scores_location8*: the expected the response variable ($\lambda$ = estimated mean number of reviews) would increase by a factor of approximately 1.4741 holding all other variables constant.
+- *review_scores_value9*: the expected the response variable ($\lambda$ = estimated mean number of reviews) would decrease by a factor of approximately 6.7350 holding all other variables constant.
 
 <!-- ```{r} -->
 <!-- # Create a matrix for plots -->
