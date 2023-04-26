@@ -1,5 +1,5 @@
 ---
-title: "Airbnb NYC"
+title: "Generalized Linear Models"
 author: "Tarek El-Hajjaoui"
 date: "2023-04-23"
 output: html_document
@@ -14,6 +14,8 @@ library(gridExtra)
 library(kableExtra)
 library(knitr)
 ```
+
+## AirBnB
 
 ### Q 4.11.3.1 Airbnb in NYC
 Perform an EDA, build a model, and interpret model coefficients to describe variation in the number of reviews (a proxy for the number of rentals, which is not available) as a function of the variables provided. Don’t forget to consider an offset, if needed.
@@ -127,7 +129,7 @@ plot3 <- ggplot(sumStats3, aes(x=review_scores_value, y=logmn_reviews)) +
 grid.arrange(plot1, plot2, plot3, ncol = 2)
 ```
 
-The graphs above suggest that the number of reviews follow a Poisson distribution. The $log(\lambda)$ (where $\lambda$ = mean number of reviews per group of $\beta_i$) has a linear pattern which suggests that Poisson is appropriate.
+The graphs above suggest that rate of increase in the number of reviews, log(n_reviews), follow a Poisson distribution since the rate is linear. The $log(\lambda)$ (where $\lambda$ = mean number of reviews per group of $\beta_i$) has a linear pattern which suggests that Poisson is appropriate.
 
 #### Q 4.11.3.1 Airbnb in NYC - Offset
 
@@ -198,7 +200,202 @@ For a **1 unit increase in the predictor variable**:
 
 - *review_scores_cleanliness4*: the expected the response variable ($\lambda$ = estimated mean number of reviews) would decrease by a factor of approximately 0.7636 holding all other variables constant.
 - *review_scores_location8*: the expected the response variable ($\lambda$ = estimated mean number of reviews) would increase by a factor of approximately 1.4741 holding all other variables constant.
-- *review_scores_value9*: the expected the response variable ($\lambda$ = estimated mean number of reviews) would decrease by a factor of approximately 6.7350 holding all other variables constant.
+- *review_scores_value9*: the expected the response variable ($\lambda$ = estimated mean number of reviews) would increase by a factor of approximately 6.7350 holding all other variables constant.
+
+### Q 5.4.1
+
+#### Q 5.4.1.g
+
+Gamma (for fixed  r): Y = time spent waiting for the  rth event in a Poisson process with an average rate of $\lambda$ events per unit of time
+
+a. Write the pmf or pdf in one-parameter exponential form, if possible.
+
+$$ e^{log(y)r - rlog(\lambda)exp(\frac{-y}{\lambda})}  $$
+b. Describe an example of a setting where this random variable might be used.
+
+- Modeling the time between successive arrivals of customers at a store. A Poisson process to model the arrival of customers, where $\lambda$ is the average number of customers that arrive in a unit of time. The random variable y would be the time that a customer spends in the line before being served, which follows the gamma distribution with parameters r and $\lambda$.
+
+c. Identify the canonical link function.
+
+- $a(y) = log(y)$
+- $b(\lambda) = r$
+- $c(\lambda) = rlog(\lambda)$
+- $d(y) = exp(\frac{-y}{\lambda})$
+
+d. Compute $\mu$ and $\sigma^2$, then compare with E(Y) and E(Y).
+
+- $E(Y) = \frac{-\frac{r}{\lambda}}{1} \Rightarrow -\frac{r}{\lambda}$
+- $\mu =\frac{r}{\lambda}$
+- $Var(Y) = \frac{0 * \frac{r}{\lambda} - \frac{-r}{\lambda^2}}{1^2} \Rightarrow \frac{r}{\lambda^2}$
+- $\sigma^2 =\frac{r}{\lambda^2}$
+
+
+#### Q 5.4.1.i
+
+a. Write the pmf or pdf in one-parameter exponential form, if possible.
+
+$$  e^{ylog(1-p) + rlog(p) + log(\frac{\Gamma(y+r)}{\Gamma(r)})}  $$
+
+b. Describe an example of a setting where this random variable might be used.
+
+- Can be used in sports analytics to model the number of games a team needs to win before reaching a certain number of losses. Each game has a probability of a win, p.
+
+c. Identify the canonical link function.
+
+- $a(y) = y$
+- $b(p) = log(1-p)$
+- $c(p) = rlog(p)$
+- $d(y) = log(\frac{\Gamma(y+r)}{\Gamma(r)})$
+
+d. Compute $\mu$ and $\sigma^2$, then compare with E(Y) and E(Y).
+
+- $E(Y) = \frac{-\frac{r}{p}}{\frac{1}{1-p}} \Rightarrow \frac{r(1-p)}{p}$
+- $\mu =\frac{r(1-p)}{p}$
+- $Var(Y) = \frac{\frac{r}{p(1-p)^2} - \frac{r}{p^2(1-p)}}{(-\frac{1}{1-p})^3} \Rightarrow \frac{r(1-p)}{p^2}$
+- $\sigma^2 =\frac{r(1-p)}{p^2}$
+
+### Q 6.8.1.1
+
+List the explanatory and response variable(s) for each research question.
+
+#### Q 6.8.1.1 a
+Are students with poor grades more likely to binge drink?
+ 
+ - Explanatory Variable: Poor grades.
+ - Response Variable: Binge drinker (binary).
+
+#### Q 6.8.1.1 b
+What is the chance you are accepted into medical school given your GPA and MCAT scores?
+
+ - Explanatory Variable: GPA, MCAT Score.
+ - Response Variable: Accepted to Medical School (binary).
+
+#### Q 6.8.1.1 c
+Is a single mom more likely to marry the baby’s father if she has a boy?
+
+ - Explanatory Variable: Baby's gender.
+ - Response Variable: Marry the baby’s father (binary).
+
+#### Q 6.8.1.1 d
+Are students participating in sports in college more or less likely to graduate?
+
+ - Explanatory Variable: Participation in sports in college.
+ - Response Variable: Graduate (binary).
+
+#### Q 6.8.1.1 e
+Is exposure to a particular chemical associated with a cancer diagnosis?
+
+ - Explanatory Variable: Exposure to particular chemical.
+ - Response Variable: Diagnosed with Cancer (binary).
+
+### Q 6.8.2.2
+
+Medical school admissions.
+
+```{r}
+df_med <- read.csv('./MedGPA.csv')
+str(df_med)
+```
+```{r}
+categorical_cols <- c('Accept', 'Acceptance', 'Sex')
+df_med[categorical_cols] <- lapply(df_med[categorical_cols], as.factor)
+```
+
+#### Q 6.8.2.2 a
+
+Compare the relative effects of improving your MCAT score versus improving your GPA on your odds of being accepted to medical school.
+
+```{r}
+# Group by Acceptance and show 5 number summary for MCAT & GPA
+by(df_med[, c("MCAT", "GPA")], df_med$Acceptance, summary)
+```
+
+```{r}
+# Fit a logistic regression model with both MCAT score and GPA as predictors
+model <- glm(Acceptance ~ MCAT + GPA, data = df_med, family = binomial)
+
+# View the model summary
+summary(model)
+
+# Exponentiate the coefficients
+round(exp(coef(model)), 4)
+
+round(exp(confint(model, level=0.95)), 4)
+```
+
+The above logistic regression model uses GPA and MCAT as its features for predicting acceptance of medical school.
+
+ - The odds of getting accepted to medical school for one unit increase in GPA are 107.389 times the odds for a one unit decrease in GPA, holding all other predictor variables constant
+ - The odds of getting accepted to medical school for one unit increase in MCAT score are 1.1788 times the odds for a one unit decrease in MCAT, holding all other predictor variables constant.
+ - Both predictors have a positive association with getting accepted to medical school, however, GPA's odds ratio is 100x larger than MCAT Score, thus it is much stronger predictor according to this model.
+
+Confidence Interval
+
+- We are 95% confident that the interval (0.9743, 1.4672) contains
+the true value odds ratio of MCAT and the interval (5.6895, 3913.2832) contains the true value odds ratio of MCAT in relation to getting accepted in medical school.
+
+#### Q 6.8.2.2 b
+
+After controlling for MCAT and GPA, is the number of applications related to odds of getting into medical school?
+
+```{r}
+# add Apps
+model2 <- glm(Acceptance ~ MCAT + GPA + Apps, data = df_med, family = binomial)
+
+summary(model2)
+round(exp(coef(model2)), 4)
+
+round(exp(confint(model2)), 4)
+```
+
+ The odds of getting accepted to medical school for one unit increase in number of applications are 1.0448 times the odds for a one unit decrease in number of applications, holding all other predictor variables constant. In other words, number of applications seems to be unrelated or there is little evidence that it is related to being accepted to medical school.
+ 
+ Confidence Interval
+
+- We are 95% confident that the interval (0.8993, 1.2190) contains
+the true value odds ratio of number of applications in relation to getting accepted in medical school.
+
+#### Q 6.8.2.2 c
+
+Is one MCAT subscale more important than the others?
+
+```{r}
+# Remove overall MCAT and replace with subscore features
+model3 <- glm(Acceptance ~ GPA  + BCPM + VR + PS + WS + BS, data = df_med, family = binomial)
+
+summary(model3)
+round(exp(coef(model3)), 4)
+
+round(exp(confint(model3)), 4)
+```
+
+Yes BS, biological subscale is by far the most important according to this model because odds of getting accepted to medical school for one unit increase in BS are 5.3917 times the odds for a one unit decrease in BS. The next highest odd ratio is PS.
+
+In order of importance
+1. BS (Biological sciences)
+2. PS (Physical sciences)
+3. VR (Verbal Reasoning)
+
+ Confidence Interval
+
+- We are 95% confident that the interval (1.9540, 22.56040) contains
+the true value odds ratio of BS in relation to getting accepted in medical school.
+
+
+#### Q 6.8.2.2 d
+
+Is there any evidence that the effect of MCAT score or GPA differs for males and females?
+
+```{r}
+reduced_model <- glm(Acceptance ~ MCAT + GPA + Sex, data = df_med, family = binomial)
+full_model <- glm(Acceptance ~ MCAT*Sex + GPA*Sex + Sex, data = df_med, family = binomial)
+# anova test
+anova_res <- anova(reduced_model, full_model, test = "Chisq")
+# View the model summary
+anova_res
+```
+
+The full model above contains interaction terms to test if the affect of MCAT and GPA are influenced by gender. The anova test was performed and the full model has a p-value of 0.3397 At a 5% significance level (ɑ), we accept the null hypothesis because the p-value is greater than 0.05. We can conclude evidence that the reduced model is good enough, and that MCAT and GPA do not differ for males and females.
 
 <!-- ```{r} -->
 <!-- # Create a matrix for plots -->
