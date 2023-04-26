@@ -83,7 +83,7 @@ k3 <- kable(table3, booktabs=T,
       caption="Compare mean and variance of the number of reviews for the review score value groups.",col.names = c("review_scores_value", "Mean", "Variance", "n")) %>% kable_styling(full_width = F)
 
 # display mean and variance tables of features
-k1 
+k1
 k2
 k3
 ```
@@ -213,7 +213,7 @@ a. Write the pmf or pdf in one-parameter exponential form, if possible.
 $$ e^{log(y)r - rlog(\lambda)exp(\frac{-y}{\lambda})}  $$
 b. Describe an example of a setting where this random variable might be used.
 
-- Modeling the time between successive arrivals of customers at a store. A Poisson process to model the arrival of customers, where $\lambda$ is the average number of customers that arrive in a unit of time. The random variable y would be the time that a customer spends in the line before being served, which follows the gamma distribution with parameters r and $\lambda$.
+Modeling the time between successive arrivals of customers at a store. A Poisson process to model the arrival of customers, where $\lambda$ is the average number of customers that arrive in a unit of time. The random variable y would be the time that a customer spends in the line before being served, which follows the gamma distribution with parameters r and $\lambda$.
 
 c. Identify the canonical link function.
 
@@ -238,7 +238,7 @@ $$  e^{ylog(1-p) + rlog(p) + log(\frac{\Gamma(y+r)}{\Gamma(r)})}  $$
 
 b. Describe an example of a setting where this random variable might be used.
 
-- Can be used in sports analytics to model the number of games a team needs to win before reaching a certain number of losses. Each game has a probability of a win, p.
+Can be used in sports analytics to model the number of games a team needs to win before reaching a certain number of losses. Each game has a probability of a win, p.
 
 c. Identify the canonical link function.
 
