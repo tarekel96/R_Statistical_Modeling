@@ -9,7 +9,7 @@ output: pdf_document
 library(car) # scatterplotMatrix(...)
 ```
 
-- \textcolor{red}{Problem 1}: Choose a $3-by-3$ covariance matrix with non-zero covariances (the off-diagonal elements should not be 0). Also a choose a sample size $n$ (e.g., n=100, 500, 1000, etc ). Using the covariance matrix you chose, simulate 1,000 data sets from a trivariate normal distribution.  
+\textcolor{red}{Problem 1}: Choose a $3-by-3$ covariance matrix with non-zero covariances (the off-diagonal elements should not be 0). Also a choose a sample size $n$ (e.g., n=100, 500, 1000, etc ). Using the covariance matrix you chose, simulate 1,000 data sets from a trivariate normal distribution.  
 
 ### 1.1
 
@@ -24,13 +24,13 @@ Sigma[1, 3] <- Sigma[3, 1] <- -0.1
 Sigma[2, 3] <- Sigma[3, 2] <- 0.1
 Sigma
 round(eigen(Sigma)$values, 2) # Check all of the eigenvalues are positive
-cor(Sigma)
+#cor(Sigma)
 ```
 
 **Simulation**
 Using the covariance matrix above, simulate 1,000 data sets from a trivariate normal distribution. The function returns an array simulation of size T where element, $X_i$, is a (nxp) Trivariate Normal Matrix,
 ```{r}
-library(MASS)
+library(MASS) # mvrnorm(...)
 create_trivariate_norm <- function(T, n, p, Sigma) {
   simulation <- array(0, c(n, 3, T))
    for (t in 1:T) {
@@ -55,6 +55,8 @@ scatterplotMatrix(simulation[, , 1])
 cor(simulation[, , 1]) # correlation matrix
 cov(simulation[, , 1]) # covariance matrix
 ```
+
+\newpage
 
 1.1. Try to make sense of the covariance matrix by examining the pairwise scatter plots using the data you simulate.
 
@@ -107,3 +109,110 @@ qqPlot(rescaled_traces_2, id = F, main = "Normal QQ Plot")
 ```
 
 The simulation above used the same covariance matrix as the original simulation however only 10 random variables were used to generate a multivariate normal distribution for each $t_1$ sample. The histogram of traces is no longer a bell-shape distribution which suggests not a normal distribution. Additionally the rescaled traces follow the $\chi^2$ distribution in QQ-plot but do not follow a $\mathcal{N}$ distribution in the QQ-plot so well. This simulation is evidence that the first simulation results were affected by the Central Limit Theorem.
+
+Problem 2 starts on next page.
+
+\newpage
+
+\textcolor{red}{Problem 2}: Find a good data example to conduct a two-sample Hotelling's $T^2$ test. Do not use the data example discussed in this course. Please (1) include visualizations as exploratory methods and (2) make conclusion in the context of the data example.  
+
+```{r}
+# X = random population 1, Y = random population 2
+Hotelling.T2.2sample=function(X, Y) {
+  n = dim(X)[1]; m=dim(Y)[1]; p=dim(X)[2]
+  if(p!= dim(Y)[2])
+    return ("Error: the dimensions of X and Y are not the same")
+  
+  X.bar=colMeans(X); Y.bar=colMeans(Y)
+  X.S=cov(X); Y.S=cov(Y)
+  pooled.S=((n-1)*X.S+(m-1)*Y.S)/(m+n-2)
+  T2=t(X.bar-Y.bar)%*%solve((1/n+1/m)*pooled.S)%*%(X.bar-Y.bar)
+  p.value=1-pf(T2/((n+m-2)*p/(n+m-1-p)),p,n+m-1-p)
+  return (list(X.bar=X.bar, Y.bar=Y.bar, T2=T2, p.value=p.value))
+}
+# dual function Hotelling.T2
+Hotelling.T2=function(X, Y=NULL, mu0=NULL) {
+  if(is.null(Y) && is.null(mu0))
+    return("Error: mu0 is not specified")
+  if(!is.null(X) && !is.null(mu0))
+    obj=Hotelling.T2.1sample(X, mu0)
+  if(!is.null(X) && !is.null(Y))
+    obj=Hotelling.T2.2sample(X,Y)
+  return (obj)
+}
+```
+
+Using built-in R dataset, mtcars.
+```{r}
+data("mtcars")
+head(mtcars)
+```
+
+```{r}
+# create subset X with samples of cyl = 6, keeping only mpg and hp columns
+X <- mtcars[mtcars$cyl == 6, c("mpg", "hp")]
+# create subset Y with samples of cyl = 8, keeping only mpg and hp columns
+Y <- mtcars[mtcars$cyl == 8, c("mpg", "hp")]
+n1 <- nrow(X); n2 <- nrow(Y)
+n1;n2
+```
+
+\newpage
+
+### 2.1 Explatory Data Analysis on differences between X and Y.
+
+For the 2 groups, mpg (miles per gallon) and hp (horsepower), will be explored below.
+
+```{r}
+# scatterplot of mpg vs. hp for X and Y datasets
+plot(X$hp, X$mpg, col = "red", pch = 16, 
+     main = "MPG vs Horsepower by Cylinder", 
+     xlab = "Horsepower", ylab = "Miles per Gallon",
+     xlim = range(c(X$hp, Y$hp)), ylim = range(c(X$mpg, Y$mpg)))
+points(Y$hp, Y$mpg, col = "blue", pch = 16)
+legend("topright", legend = c("cyl=6", "cyl=8"), 
+       col = c("red", "blue"), pch = 16)
+```
+
+```{r}
+par(mfrow = c(1, 2))
+# boxplots of mpg for X and Y datasets
+boxplot(X$mpg, Y$mpg, names = c("cyl=6", "cyl=8"), 
+        main = "MPG distribution by Cylinder", 
+        ylab = "Miles per Gallon")
+boxplot(X$hp, Y$hp, names = c("cyl=6", "cyl=8"), 
+        main = "HP distribution by Cylinder", 
+        ylab = "Horsepower")
+par(mfrow = c(1, 1))
+# density plot of mpg for X and Y datasets
+plot(density(X$mpg), main = "Density plot of MPG by Cylinder", 
+     xlab = "Miles per Gallon", lwd = 2, col = "red")
+lines(density(Y$mpg), col = "blue", lwd = 2)
+legend("topright", legend = c("cyl=6", "cyl=8"), 
+       col = c("red", "blue"), lwd = 2)
+```
+
+Calculating mean differences among features between sample groups, sample variances, and pooled variance.
+```{r}
+p=2
+# calculate mean of each sample's features
+mean1=matrix(colMeans(X, p, 1))
+mean2=matrix(colMeans(Y, p, 1))
+mean1; mean2
+# calculate difference in means between samples' features
+mean.diff = mean1-mean2
+mean.diff
+# calculate each sample variance
+S1=cov(X); S2=cov(Y);
+# pooled variance
+Sp=( (n1-1)*S1+(n2-1)*S2 )/ (n1+n2-2)
+Sp
+```
+
+Performing the Hotelling's $T^2$ test on X and Y.
+```{r}
+Hotelling.T2(X, Y)
+```
+
+### 2.2
+The p-value is very low, 0.0002, and so there is strong evidence to reject the null hypothesis that the means of the two groups are equal. We can conclude that the difference between the mean vectors (mpg, hp) of the two groups, 6 cylinder vehicles and 8 cylinder vehicles, is statistically significant.
