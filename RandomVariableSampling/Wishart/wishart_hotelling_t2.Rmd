@@ -149,10 +149,13 @@ head(mtcars)
 ```
 
 ```{r}
-# create subset X with samples of cyl = 6, keeping only mpg and hp columns
-X <- mtcars[mtcars$cyl == 6, c("mpg", "hp")]
-# create subset Y with samples of cyl = 8, keeping only mpg and hp columns
-Y <- mtcars[mtcars$cyl == 8, c("mpg", "hp")]
+# subset mtcars to only include samples with 4 or 6 cylinders
+subset_mtcars <- mtcars[mtcars$cyl %in% c(4,6),]
+# carb = Number of carburetors
+# create subset X with samples of carb = 2, keeping only mpg and wt columns
+X <- subset_mtcars[subset_mtcars$carb == 2, c("mpg", "wt")]
+# create subset Y with samples of carb = 4, keeping only mpg and wt columns
+Y <- subset_mtcars[subset_mtcars$carb == 4, c("mpg", "wt")]
 n1 <- nrow(X); n2 <- nrow(Y)
 n1;n2
 ```
@@ -161,36 +164,56 @@ n1;n2
 
 ### 2.1 Explatory Data Analysis on differences between X and Y.
 
-For the 2 groups, mpg (miles per gallon) and hp (horsepower), will be explored below.
+For the 2 groups, mpg (miles per gallon) and wt (weight - lb/1000), will be explored below.
 
 ```{r}
-# scatterplot of mpg vs. hp for X and Y datasets
-plot(X$hp, X$mpg, col = "red", pch = 16, 
-     main = "MPG vs Horsepower by Cylinder", 
-     xlab = "Horsepower", ylab = "Miles per Gallon",
-     xlim = range(c(X$hp, Y$hp)), ylim = range(c(X$mpg, Y$mpg)))
-points(Y$hp, Y$mpg, col = "blue", pch = 16)
-legend("topright", legend = c("cyl=6", "cyl=8"), 
-       col = c("red", "blue"), pch = 16)
+# comparing variance of 2 groups across MPG and Wt
+par(mfrow = c(1, 2))
+# boxplots of mpg for X and Y datasets
+boxplot(X$mpg, Y$mpg, names = c("carb=2", "carb=4"), 
+        main = "MPG Distribution", 
+        ylab = "Miles per Gallon")
+# boxplots of mpg for X and Y datasets
+boxplot(X$wt, Y$wt, names = c("carb=2", "carb=4"), 
+        main = "Wt Distribution", 
+        ylab = "Weight (lb/1000)")
 ```
+
+The plot above visualizes the dispersion of MPG and Wt by each sample group.
 
 ```{r}
 par(mfrow = c(1, 2))
-# boxplots of mpg for X and Y datasets
-boxplot(X$mpg, Y$mpg, names = c("cyl=6", "cyl=8"), 
-        main = "MPG distribution by Cylinder", 
-        ylab = "Miles per Gallon")
-boxplot(X$hp, Y$hp, names = c("cyl=6", "cyl=8"), 
-        main = "HP distribution by Cylinder", 
-        ylab = "Horsepower")
-par(mfrow = c(1, 1))
 # density plot of mpg for X and Y datasets
-plot(density(X$mpg), main = "Density plot of MPG by Cylinder", 
+plot(density(X$mpg), main = "Density of MPG",
+     xlim=c(12, 40), ylim=c(0, 0.25), 
      xlab = "Miles per Gallon", lwd = 2, col = "red")
 lines(density(Y$mpg), col = "blue", lwd = 2)
-legend("topright", legend = c("cyl=6", "cyl=8"), 
+legend("topright", legend = c("carb=2", "carb=4"), 
+       col = c("red", "blue"), lwd = 2)
+# density plot of wt for X and Y datasets
+plot(density(X$wt), main = "Density of Wt ",
+     xlim=c(0, 5), ylim=c(0, 1),
+     xlab = "Weight (lb/1000)", lwd = 2, col = "red")
+lines(density(Y$wt), col = "blue", lwd = 2)
+legend("topright", legend = c("carb=2", "carb=4"), 
        col = c("red", "blue"), lwd = 2)
 ```
+
+It can be observed from the marginal density plots that the variables appear to be approximately marginally normally distributed due to bell-shaped curves.
+
+```{r}
+# scatterplot of mpg vs. wt for X and Y datasets
+plot(X$wt, X$mpg, col = "red", pch = 16, 
+     main = "Joint Density (MPG vs Weight)", 
+     xlab = "Weight", ylab = "Miles per Gallon",
+     xlim = range(c(X$wt, Y$wt)), ylim = range(c(X$mpg, Y$mpg)))
+points(Y$wt, Y$mpg, col = "blue", pch = 16)
+legend("topright", legend = c("carb=2", "carb=4"), 
+       col = c("red", "blue"), pch = 16)
+```
+
+It is difficult to assess if the variables, MPG and Wt, are jointly normally distributed because there are few samples. The ellispe-like shape and lack of tight clusters does support the notion that there is little evidence to say the features are not jointly normally distributed.
+
 
 Calculating mean differences among features between sample groups, sample variances, and pooled variance.
 ```{r}
@@ -215,4 +238,4 @@ Hotelling.T2(X, Y)
 ```
 
 ### 2.2
-The p-value is very low, 0.0002, and so there is strong evidence to reject the null hypothesis that the means of the two groups are equal. We can conclude that the difference between the mean vectors (mpg, hp) of the two groups, 6 cylinder vehicles and 8 cylinder vehicles, is statistically significant.
+The p-value is 0.0285. At a significance level of 0.05, we can conclude that the difference between the mean vectors (mpg, wt) of the two groups, 2 carburetor vehicles and 4 carburetor vehicles, is statistically significant. It should be noted that the p-value is close to exceeding the significance level which means the evidence supporting the rejection of the null is not very strong, but still strong enough to support the claim at a significance level of 0.05.
