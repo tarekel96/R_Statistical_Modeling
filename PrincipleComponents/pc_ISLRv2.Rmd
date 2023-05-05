@@ -5,10 +5,10 @@ date: "2023-05-04"
 output: html_document
 ---
 
-## ISLR v2 Chapter 6: Problem 9
+## ISLR v2 Chapter 6: Problem 9 - College Applications
 
 ```{r, message=FALSE}
-library(caret) # createDataPartition
+library(caret) # createDataPartition, trainControl, train
 library(leaps) # regsubsets
 library(glmnet) # glmnet - ridge regression
 library(pls) # pcr(), pls()
@@ -57,13 +57,16 @@ lr.mod <- lm(Apps ~ ., data = train_college)
 # predict the response variable on the test set
 lr.pred <- predict(lr.mod, newdata = test_college)
 # calculate the test error (mean squared error)
-lr.mse <- mean((lr.pred - test_college$Apps)^2)
-lr.mse
+lr.MSE <- mean((lr.pred - test_college$Apps)^2)
+lr.MSE
 ```
 
 ### 9. c)
 
 Fit a ridge regression model on the training set, with $\lambda$ chosen by cross-validation. Report the test error obtained.
+
+- *Note: I am using the trainControl and train functions from caret to perform all of my cross-validations.*
+
 ```{r}
 # set up training control object for 10-fold cross-validation
 ridge.train_control <- trainControl(method = "cv", number = 10, returnResamp = "all")
@@ -78,8 +81,8 @@ ridge.mod <- train(Apps ~ ., data = train_college, method = "glmnet",
 ridge.pred <- predict(ridge.mod, newdata = test_college)
 
 # calculate test error (mean squared error)
-ridge.mse <- mean((ridge.pred - test_college$Apps)^2)
-ridge.mse
+ridge.MSE <- mean((ridge.pred - test_college$Apps)^2)
+ridge.MSE
 ```
 
 ### 9. d)
@@ -99,8 +102,8 @@ lasso.mod <- train(Apps ~ ., data = train_college, method = "glmnet",
 lasso.pred <- predict(lasso.mod, newdata = test_college)
 
 # calculate test error (mean squared error)
-lasso.mse <- mean((lasso.pred - test_college$Apps)^2)
-lasso.mse
+lasso.MSE <- mean((lasso.pred - test_college$Apps)^2)
+lasso.MSE
 ```
 
 ### 9. e)
@@ -124,9 +127,9 @@ In the plot above, it can observed there is a big drop in MSE after 3-4 componen
 pcr.pred <- predict(pcr.mod, test_college, ncomp = 6)
 
 # calculate test error (mean squared error)
-pcr.mse <- mean((pcr.pred - test_college$Apps)^2)
+pcr.MSE <- mean((pcr.pred - test_college$Apps)^2)
 
-pcr.mse
+pcr.MSE
 ```
 
 ### 9. f)
@@ -150,24 +153,133 @@ In the plot above, it can observed there is a big drop in MSE after 2-3 componen
 pls.pred <- predict(pls.mod, test_college, ncomp = 6)
 
 # calculate test error (mean squared error)
-pls.mse <- mean((pls.pred - test_college$Apps)^2)
+pls.MSE <- mean((pls.pred - test_college$Apps)^2)
 
-pls.mse
+pls.MSE
 ```
 
 ### 9. g)
 Comment on the results obtained. How accurately can we predict the number of college applications received? Is there much difference among the test errors resulting from these five approaches?
 ```{r}
-mse_results <- c(lr.mse, ridge.mse, lasso.mse, pcr.mse, pls.mse)
-mse_labels <- c("lr.mse", "ridge.mse", "lasso.mse", "pcr.mse", "pls.mse")
-df_mse <- data.frame(Model = mse_labels, Test_Error = mse_results)
-arrange(df_mse, desc(Test_Error))
+MSE_results <- c(lr.MSE, ridge.MSE, lasso.MSE, pcr.MSE, pls.MSE)
+MSE_labels <- c("lr.MSE", "ridge.MSE", "lasso.MSE", "pcr.MSE", "pls.MSE")
+df_MSE <- data.frame(Model = MSE_labels, Test_Error = MSE_results)
+arrange(df_MSE, desc(Test_Error))
 ```
 
-- It is expected for the PCR and PLS models to have higher MSE values than the other models because they are dimensional techniques, which are intended to reduce the number of predictor variables. PLS did perform significantly better in terms of MSE which suggests that the dataset has highly correlated predictors or a lot of noise/outliers.
-- Ridge regression performs the best in terms of having the lowest MSE, which suggests there is multicollinearity in the data. When there is multicollinearity in the data, it can be difficult for Lasso regression to select the "correct" set of variables to include in the model. Ridge regression can handle multicollinearity better than the latter two because it shrinks the model coefficients towards zero, which lead to more stable and reliable estimates of the coefficients.
+- It is expected for the PCR and PLS models to have higher MSE values than the other models because they are intended to reduce the number of predictor variables. PLS did perform significantly better in terms of MSE which suggests that the dataset has highly correlated predictors or a lot of noise/outliers.
+- Ridge regression performs the best in terms of having the lowest MSE, which suggests there is multicollinearity in the data. When there is multicollinearity in the data, it can be difficult for Lasso regression to select the best set of variables to include in the model. Ridge regression can handle multicollinearity better than the latter two because it shrinks the model coefficients towards zero, which lead to more stable and reliable estimates of the coefficients.
 
-<!-- # book way of splitting dataset -->
-<!-- # train <- sample(c(TRUE, FALSE), nrow(df_college), -->
-<!-- # replace = TRUE) -->
-<!-- # test <- (!train) -->
+## ISLR v2 Chapter 6: Problem 11 - Bostom Crime Rate
+
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/ISLRv2_Datasets/Boston.csv'
+df_boston <- read.csv(file_path, row.names = NULL, header = TRUE)
+df_boston <- na.omit(df_boston)
+# drop column X from the dataframe
+df_boston$X <- NULL
+```
+
+```{r}
+categorical_cols <- c('chas', 'rad')
+df_boston[categorical_cols] <- lapply(df_boston[categorical_cols], as.factor)
+```
+
+```{r}
+str(df_boston) # ensure data types correct now
+colSums(is.na(df_boston)) # count number of nulls in each column
+nrow(df_boston)
+```
+### 11. a)
+
+Try out some of the regression methods explored in this chapter, such as best subset selection, the lasso, ridge regression, and PCR. Present and discuss results for the approaches that you consider.
+```{r}
+set.seed(0) # set random seed for reproducibility
+# split the dataframe into train and test sets
+train_indices <- createDataPartition(df_boston$crim, p = 0.7, list = FALSE)
+train_boston <- df_boston[train_indices, ]
+test_boston <- df_boston[-train_indices, ]
+y_true <- test_boston$crim
+dim(train_boston);dim(test_boston) # checking dims of split data
+```
+
+Trying different models: [pcr, best subset, ridge, lasso]
+```{r}
+# PCR
+# perform PCR on the training data with CV
+pcr.mod <- pcr(crim ~ ., data = train_boston, scale = TRUE,
+    validation = "CV") # cross validation
+# view CV plot to choose ncomp
+validationplot(pcr.mod, val.type = "MSEP")
+```
+
+```{r}
+# PCR
+# make predictions
+pcr.pred <- predict(pcr.mod, test_boston, ncomp = 10)
+# calculate test error (mean squared error)
+pcr.MSE <- mean((y_true - pcr.pred)^2)
+
+# Best Subset
+# fit a best subset model training set
+regfit.mod <- regsubsets(crim ~ ., data = train_boston, nvmax = 13)
+# predict the response variable on the test set
+test.mat <- model.matrix(crim ~ ., data = test_boston)
+regfit.coefi <- coef(regfit.mod, 5)
+regfit.pred <- test.mat[, names(regfit.coefi)] %*% regfit.coefi
+# calculate the test error (mean squared error)
+regfit.MSE <- mean((y_true - regfit.pred)^2)
+
+# Ridge
+# set up training control object for 10-fold cross-validation
+ridge.train_control <- trainControl(method = "cv", number = 10, returnResamp = "all")
+# fit ridge (alpha = 0) regression model using glmnet
+ridge.mod <- train(crim ~ ., data = train_boston, method = "glmnet",
+                     trControl = ridge.train_control,
+                     # alpha = 0 (ridge regression) 
+                     tuneGrid = expand.grid(alpha = 0, lambda=seq(0.01, 1, length = 50)))
+# make predictions
+ridge.pred <- predict(ridge.mod, newdata = test_boston)
+# calculate test error (mean squared error)
+ridge.MSE <- mean((y_true - ridge.pred)^2)
+
+# Lasso
+# set up training control object for 10-fold cross-validation
+lasso.train_control <- trainControl(method = "cv", number = 10, returnResamp = "all")
+# fit lasso (alpha = 1) regression model using glmnet
+lasso.mod <- train(crim ~ ., data = train_boston, method = "glmnet",
+                     trControl = lasso.train_control,
+                     # alpha = 1 (lasso regression) 
+                     tuneGrid = expand.grid(alpha = 1, lambda=seq(0.01, 1, length = 50)))
+# make predictions
+lasso.pred <- predict(lasso.mod, newdata = test_boston)
+# calculate test error (mean squared error)
+lasso.MSE <- mean((y_true - lasso.pred)^2)
+```
+
+```{r}
+MSE_results <- c(regfit.MSE, ridge.MSE, lasso.MSE, pcr.MSE)
+MSE_labels <- c("regfit.MSE", "ridge.MSE", "lasso.MSE", "pcr.MSE")
+df_MSE <- data.frame(Model = MSE_labels, Test_Error = MSE_results)
+arrange(df_MSE, desc(Test_Error))
+```
+
+All of the methods above were trained on 70% of the original Boston dataset by splitting the dataset via createDataPartition from the caret library. Each model's performance was tested via the validation set (30% of the orignal dataset). The results can be summarized above. A description of each approach:
+
+  * PCR: Cross-validation was on performed for the number of features, $M$. The validation plot shows the MSE for models with the $x_i$ number of components. We can observe there is a large drop in validation MSE around 2 features and then another big drop around 4 - 5 features. For the sake of testing the effectiveness of dimension reduction, only 5 features were chosen in the final pcr model to compare with the later models in terms of validation set performance. The model with 5 features was used to predict y, crime rate in Boston. The validation MSE was calculated based on these predictions. 
+
+  * Best Subset: A subset selection of all 13 predictor variables was performed via the regsubsets method. Next the top 5 coefficients in terms of predictive power were extracted from the model, the idea is to compare its performance with the PCR model. The top 5 predictors were used to predict y, crime rate in Boston. The validation MSE was calculated based on these predictions. 
+  
+  * Ridge & Lasso: Ridge and Lasso modeling was done via very similar methods. The trainControl & train functions from the caret library was used to perform 10-fold cross-validation. In the train function, the alpha parameter is set to 0 to specify ridge and 1 to specify lasso regression. The best model (trained on the training set) from the cross validation is returned from the train function which is then used to predict y, crime rate in Boston. The validation MSE was calculated based on these predictions. 
+  
+### 11. b)
+
+Propose a model (or set of models) that seem to perform well on this data set, and justify your answer. Make sure that you are evaluating model performance using validation set error, cross- validation, or some other reasonable alternative, as opposed to using training error.
+
+- The validation MSE dataframe printed above demonstrates that the models performed very similarly. It is expected for both ridge and lasso regression to have lower validation MSE values because each of them used all of the predictors in their predictions. Although their validation MSE are lower than the best subset model and pcr model, the performance gain was marginal. The best model is best subset model because it uses only 5 predictors to make a prediction like the pcr model, but it has a lower validation MSE than the pcr model. It should be noted that the pcr model and best subset model testing could be more robust with 10-fold cross validation similar to how it was performed with lasso and ridge regression. 
+
+### 11. c)
+
+Does your chosen model involve all of the features in the data set? Why or why not?
+
+- The chosen model in part b, best subset model, only has 5 features. The idea of 5 features came from performing principle component regression prior to the best subset model building. It was observed that a model with 5 components was able to make predictions with low validation MSE. Since the best subset model with 5 components performs nearly as good as ridge and lasso regression (with all features), the best subset model was chosen. In general if you can have a model B with almost equal prediction power but half as many features as model A, then model B should be chosen because it is a lot more computationally efficient.
