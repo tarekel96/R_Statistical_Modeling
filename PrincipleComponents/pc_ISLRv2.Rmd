@@ -1,0 +1,173 @@
+---
+title: "Principle Components"
+author: "Tarek El-Hajjaoui"
+date: "2023-05-04"
+output: html_document
+---
+
+## ISLR v2 Chapter 6: Problem 9
+
+```{r, message=FALSE}
+library(caret) # createDataPartition
+library(leaps) # regsubsets
+library(glmnet) # glmnet - ridge regression
+library(pls) # pcr(), pls()
+library(dplyr) # arrange()
+```
+
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/ISLRv2_Datasets/College.csv'
+df_college <- read.csv(file_path, row.names = NULL, header = TRUE)
+df_college <- na.omit(df_college)
+# drop column X from the dataframe
+df_college$X <- NULL
+```
+
+```{r}
+categorical_cols <- c('Private')
+df_college[categorical_cols] <- lapply(df_college[categorical_cols], as.factor)
+```
+
+```{r}
+str(df_college) # ensure data types correct now
+colSums(is.na(df_college)) # count number of nulls in each column
+nrow(df_college)
+```
+
+### 9. a)
+
+Split the data set into a training set and a test set.
+- Y = Apps, number of applications.
+- X = All of the other features.
+```{r}
+set.seed(0) # set random seed for reproducibility
+# split the dataframe into train and test sets
+train_indices <- createDataPartition(df_college$Apps, p = 0.7, list = FALSE)
+train_college <- df_college[train_indices, ]
+test_college <- df_college[-train_indices, ]
+dim(train_college);dim(test_college) # checking dims of split data
+```
+
+### 9. b)
+
+Fit a linear model using least squares on the training set, and report the test error obtained.
+```{r}
+# fit a linear model using least squares on the training set
+lr.mod <- lm(Apps ~ ., data = train_college)
+# predict the response variable on the test set
+lr.pred <- predict(lr.mod, newdata = test_college)
+# calculate the test error (mean squared error)
+lr.mse <- mean((lr.pred - test_college$Apps)^2)
+lr.mse
+```
+
+### 9. c)
+
+Fit a ridge regression model on the training set, with $\lambda$ chosen by cross-validation. Report the test error obtained.
+```{r}
+# set up training control object for 10-fold cross-validation
+ridge.train_control <- trainControl(method = "cv", number = 10, returnResamp = "all")
+
+# fit ridge (alpha = 0) regression model using glmnet
+ridge.mod <- train(Apps ~ ., data = train_college, method = "glmnet",
+                     trControl = ridge.train_control,
+                     # alpha = 0 (ridge regression) 
+                     tuneGrid = expand.grid(alpha = 0, lambda=seq(0.01, 1, length = 50)))
+
+# make predictions
+ridge.pred <- predict(ridge.mod, newdata = test_college)
+
+# calculate test error (mean squared error)
+ridge.mse <- mean((ridge.pred - test_college$Apps)^2)
+ridge.mse
+```
+
+### 9. d)
+
+Fit a lasso model on the training set, with $\lambda$ chosen by cross- validation. Report the test error obtained, along with the number of non-zero coefficient estimates.
+```{r}
+# set up training control object for 10-fold cross-validation
+lasso.train_control <- trainControl(method = "cv", number = 10, returnResamp = "all")
+
+# fit lasso (alpha = 1) regression model using glmnet
+lasso.mod <- train(Apps ~ ., data = train_college, method = "glmnet",
+                     trControl = lasso.train_control,
+                     # alpha = 1 (lasso regression) 
+                     tuneGrid = expand.grid(alpha = 1, lambda=seq(0.01, 1, length = 50)))
+
+# make predictions
+lasso.pred <- predict(lasso.mod, newdata = test_college)
+
+# calculate test error (mean squared error)
+lasso.mse <- mean((lasso.pred - test_college$Apps)^2)
+lasso.mse
+```
+
+### 9. e)
+
+Fit a PCR model on the training set, with M chosen by cross- validation. Report the test error obtained, along with the value of M selected by cross-validation.
+```{r}
+options(scipen=999) # disable scientifit notation
+
+# perform PCR on the training data with CV
+pcr.mod <- pcr(Apps ~ ., data = train_college, scale = TRUE,
+    validation = "CV") # cross validation
+
+# view CV plot to choose ncomp
+validationplot(pcr.mod, val.type = "MSEP")
+```
+
+In the plot above, it can observed there is a big drop in MSE after 3-4 components are used. There appears to be flattening right after 5 components. That being said, 6 principle components should be sufficient in making predictions.
+
+```{r}
+# make predictions
+pcr.pred <- predict(pcr.mod, test_college, ncomp = 6)
+
+# calculate test error (mean squared error)
+pcr.mse <- mean((pcr.pred - test_college$Apps)^2)
+
+pcr.mse
+```
+
+### 9. f)
+
+Fit a PLS model on the training set, with M chosen by cross- validation. Report the test error obtained, along with the value of M selected by cross-validation.
+```{r}
+options(scipen=999) # disable scientifit notation
+
+# perform PLS on the training data with CV
+pls.mod <- plsr(Apps ~ ., data = train_college, scale = TRUE,
+    validation = "CV") # cross validation
+
+# view CV plot to choose ncomp
+validationplot(pls.mod, val.type = "MSEP")
+```
+
+In the plot above, it can observed there is a big drop in MSE after 2-3 components are used. There appears to be flattening right after 5 components. That being said, 6 principle components should be sufficient in making predictions.
+
+```{r}
+# make predictions
+pls.pred <- predict(pls.mod, test_college, ncomp = 6)
+
+# calculate test error (mean squared error)
+pls.mse <- mean((pls.pred - test_college$Apps)^2)
+
+pls.mse
+```
+
+### 9. g)
+Comment on the results obtained. How accurately can we predict the number of college applications received? Is there much difference among the test errors resulting from these five approaches?
+```{r}
+mse_results <- c(lr.mse, ridge.mse, lasso.mse, pcr.mse, pls.mse)
+mse_labels <- c("lr.mse", "ridge.mse", "lasso.mse", "pcr.mse", "pls.mse")
+df_mse <- data.frame(Model = mse_labels, Test_Error = mse_results)
+arrange(df_mse, desc(Test_Error))
+```
+
+- It is expected for the PCR and PLS models to have higher MSE values than the other models because they are dimensional techniques, which are intended to reduce the number of predictor variables. PLS did perform significantly better in terms of MSE which suggests that the dataset has highly correlated predictors or a lot of noise/outliers.
+- Ridge regression performs the best in terms of having the lowest MSE, which suggests there is multicollinearity in the data. When there is multicollinearity in the data, it can be difficult for Lasso regression to select the "correct" set of variables to include in the model. Ridge regression can handle multicollinearity better than the latter two because it shrinks the model coefficients towards zero, which lead to more stable and reliable estimates of the coefficients.
+
+<!-- # book way of splitting dataset -->
+<!-- # train <- sample(c(TRUE, FALSE), nrow(df_college), -->
+<!-- # replace = TRUE) -->
+<!-- # test <- (!train) -->
