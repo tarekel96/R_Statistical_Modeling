@@ -1,0 +1,631 @@
+---
+title: "Multivariate Normal Statistical Testing"
+author: "Tarek El-Hajjaoui"
+date: "2023-05-11"
+output: pdf_document
+---
+
+Type I Error (False Positive)
+- The type I error rate of a test is the probability of rejecting the null hypothesis when it is actually true.
+- In most research contexts, the acceptable type I error rate is set at 0.05, meaning that there is a 5% chance of falsely rejecting the null hypothesis.
+- In many tests, critical values are chosen to aim to control the type I error rate of a test
+- The true type I error rate of a test depends on whether the underlying assumption of a test is met
+- A simulation study can help assess whether a statistical test maintains the desired type I error rate under various conditions.
+
+Power (probability of a True Positive)
+- The power of a statistical test is the probability of correctly rejecting a null hypothesis when it is false.
+- In other words, power is the ability of a test to detect a true effect or relationship between variables.
+- Power is affected by several factors, including sample size, effect size, and significance level.
+- For simple tests, analytical formulas for calculation power might exist. For complicated tests, simulations can be used to evaluate power
+
+In research we often need to compare different test statistics. Consider three multivariate normal populations. Here I would like you to assess their type I error rate and power of the following four tests for testing $H_0:\mu_A=\mu_B=\mu_C$ vs $H_1: H_0$is not true, where $\mu_A, \mu_B, \mu_C \in \mathbf{R}^p$ are the population mean vectors of the three subpopulations, respectively.
+
+1. Wilk's lambda statistic $\Lambda=\frac{|W|}{|B+W|}$
+
+-  recommended when have small sample sizes or unequal group sizes
+
+2. Lawley-Hotelling trace $tr[BW^{-1}]$
+
+- The Lawley-Hotelling trace is generally more powerful than Wilks' Lambda when the effect size is large or when there are many dependent variables.
+
+3. Pillai trace $tr[B(B+W)^{-1})]$
+
+- Pillai's trace is known for being robust to violations of assumptions, particularly the assumption of equal variance-covariance matrices. 
+
+
+4. Roy's largest root: the largest eigenvalue of $BW^{-1}$
+
+- Roy's largest root is typically the most powerful of these four tests when there is only one significant root or when the first root accounts for most of the effect. However, it can be less powerful when there are several smaller roots. 
+
+\newpage
+
+Assume that the three underlying populations have the same variance-covariance matrix $\Sigma$. Four different sigma situations to consider: 
+
+\begin{enumerate}
+\item Independent and equal variance:
+$$\Sigma=\begin{pmatrix} 1.5&0&0\\ 0&1.5&0\\ 0&0&1.5\end{pmatrix}$$
+
+\item Positively dependent:
+$$\Sigma=\begin{pmatrix} 1&0.5&0.5\\ 0.5&1&0.5\\ 0.5&0.5&1\end{pmatrix}$$
+
+
+\item Negatively dependent:
+$$\Sigma=\begin{pmatrix} 1&-0.2&-0.2\\ -0.2&1&-0.2\\ -0.2&-0.2&1\end{pmatrix}$$
+\item Independent but unequal variance:
+$$\Sigma=\begin{pmatrix} 1&0&0\\ 0&2&0\\ 0&0&3\end{pmatrix}$$
+\end{enumerate}
+
+
+\newpage
+
+```{r}
+#library(tidyr) #the pipe (%>%) tool is extremely useful
+library(MASS)
+set.seed(0)  # for reproducibility
+```
+
+
+```{r}
+# Independent and equal Sigma
+Sigma_ind_eq = matrix(c(1.5, 0, 0,
+                        0, 1.5, 0,
+                        0, 0, 1.5),nrow=3)
+
+# Positively dependent Sigma
+Sigma_pos_dep = matrix(c(1.0, 0.8, 0.6,
+                         0.8, 1.0, 0.4,
+                         0.6, 0.4, 1.0), nrow=3)
+
+
+# Negatively dependent Sigma
+Sigma_neg_dep = matrix(c(1.0, -0.2, -0.2,
+                         -0.2, 1.0, -0.2,
+                         -0.2, -0.2, 1.0), nrow=3)
+
+# Independent and unequal Sigma
+Sigma_ind_uneq = matrix(c(2, 0, 0,
+                        0, 6, 0,
+                        0, 0, 10), nrow=3)
+```
+
+```{r}
+set.seed(0)
+tests <- c("Pillai", "Wilks", "Hotelling-Lawley", "Roy")
+gen_data <- function(n, G, mu2, mu1 = c(0,0,0), Sigma=diag(1, 3)){
+  Y <- c()
+  for (g in 1:ceiling(G/2)){
+    Y <- rbind(Y, mvrnorm(n, mu1, Sigma))
+  }
+  for (g in 1:floor(G/2)){
+    Y <- rbind(Y, mvrnorm(n, mu2, Sigma))
+  }
+Y 
+}
+
+test <- function(n, G, Y){
+  groups <- rep(c(paste("Group", 1:G)), each=n)
+  obj <- manova(Y ~ groups)
+  tests <- c("Pillai", "Wilks", "Hotelling-Lawley", "Roy")
+  reject <- rep(0, 4)
+  for (t in 1:length(tests)){
+      # position [1,6] where p-value is
+      reject[t] <- summary(obj, test = tests[t])$stats[1,6]<0.05
+    }
+  reject # if reject, then 1 else 0
+}
+
+simulate <- function(B, n, G, mu2, Sigma = diag(1, 3)){
+  results <- rep(0, 4)
+  for (b in 1:B){
+      Y <- gen_data(n, G, mu2, Sigma=Sigma)
+      results <- results + test(n, G, Y)
+  }
+  results/B 
+}
+
+gen_imbalanced_data <- function(n1, n2, n3, G, mu1, mu2, mu3, Sigma=diag(1.5, 3)){
+  Y <- c()
+  Y <- rbind(Y, mvrnorm(n1, mu1, Sigma))
+  Y <- rbind(Y, mvrnorm(n2, mu2, Sigma))
+  Y <- rbind(Y, mvrnorm(n3, mu3, Sigma))
+  Y 
+}
+
+test_imbalanced <- function(n1, n2, n3, G, Y){
+  groups <- rep(c(paste("Group", 1)), each=n1)
+  groups <- c(groups, rep(c(paste("Group", 2)), each = n2))
+  groups <- c(groups, rep(c(paste("Group", 3)), each = n3))
+  obj <- manova(Y ~ groups)
+  tests <- c("Pillai", "Wilks", "Hotelling-Lawley", "Roy")
+  reject <- rep(0, 4)
+  for (t in 1:length(tests)){
+      # position [1,6] where p-value is
+      reject[t] <- summary(obj, test = tests[t])$stats[1,6]<0.05
+    }
+  reject # if reject, then 1 else 0
+}
+
+simulate_imbalanced <- function(B, n, w1, w2, w3, G, mu1, mu2, mu3, Sigma=diag(1.5, 3)){
+  # calculate the proportions for each group
+  p1 <- w1 / (w1 + w2 + w3)
+  p2 <- w2 / (w1 + w2 + w3)
+  p3 <- w3 / (w1 + w2 + w3)
+  
+  # adjust proportions to ensure they sum to 1
+  proportions <- c(p1, p2, p3)
+  proportions <- proportions / sum(proportions)
+  # multiply adjusted proportions by the total population size
+  n1 <- round(proportions[1] * n)
+  n2 <- round(proportions[2] * n)
+  n3 <- round(proportions[3] * n)
+  results <- rep(0, 4)
+  for (b in 1:B){
+      Y <- gen_imbalanced_data(n1,n2,n3,G,mu1,mu2,mu3,Sigma)
+      results <- results + test_imbalanced(n1,n2,n3,G,Y)
+  }
+  results/B 
+}
+```
+
+
+```{r}
+G <- 3; mu2 <- c(3,3,3); p <- length(mu2)
+n<-100
+# Visualize distribution of groups
+Y <- gen_data(n, G, mu2)
+groups <- rep(1:G, each=n)
+par(mfrow=c(ceiling(G/3), 2 + (G>=3)))
+for (g in 1:G){
+  boxplot(Y[which(groups==g), ], ylim=c(-4, 4), main = paste("Group", g))
+}
+```
+## Testing different Sample Size (N) with different Sigmas
+```{r}
+set.seed(0)
+# Type I Error Simulation
+N <- c(5, 10, 100, 200, 300, 400, 500)
+Sigma_ind_eq_alpha_type_I <- matrix(0, length(N), 4)
+Sigma_pos_dep_alpha_type_I <- matrix(0, length(N), 4)
+Sigma_ind_uneq_alpha_type_I <- matrix(0, length(N), 4)
+Sigma_neg_dep_alpha_type_I <- matrix(0, length(N), 4)
+# Sigma_ind_eq
+for (k in N){
+  # mu1 & mu2 = (0,0,0) because want to check if wrongly reject Null Hypothesis
+  Sigma_ind_eq_alpha_type_I[which(k==N), ] <- simulate(B = 300, n = k, G = 3, mu2=c(0,0,0), Sigma = Sigma_ind_eq)
+}
+# Sigma_pos_dep
+for (k in N){
+  # mu1 & mu2 = (0,0,0) because want to check if wrongly reject Null Hypothesis
+  Sigma_pos_dep_alpha_type_I[which(k==N), ] <- simulate(B = 300, n = k, G = 3, mu2=c(0,0,0), Sigma = Sigma_pos_dep)
+}
+# Sigma_ind_uneq
+for (k in N){
+  # mu1 & mu2 = (0,0,0) because want to check if wrongly reject Null Hypothesis
+  Sigma_ind_uneq_alpha_type_I[which(k==N), ] <- simulate(B = 300, n = k, G = 3, mu2=c(0,0,0), Sigma = Sigma_ind_uneq)
+}
+# Sigma_neg_dep
+for (k in N){
+  # mu1 & mu2 = (0,0,0) because want to check if wrongly reject Null Hypothesis
+  Sigma_neg_dep_alpha_type_I[which(k==N), ] <- simulate(B = 300, n = k, G = 3, mu2=c(0,0,0), Sigma = Sigma_neg_dep)
+}
+#par(mfrow=c(2, 2))
+layout(matrix(c(1,2,3,4), nrow = 1, ncol = 4, byrow = TRUE))
+#par(mfrow=c(1, 2))
+plot(N,rep(0, length(N)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Indep Eq Sigma")
+for (i in 1:4){
+lines(N, Sigma_ind_eq_alpha_type_I[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("top", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+plot(N,rep(0, length(N)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Indep UnEq Sigma")
+for (i in 1:4){
+lines(N, Sigma_ind_uneq_alpha_type_I[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("top", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+
+
+#par(mfrow=c(1, 2))
+plot(N,rep(0, length(N)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Pos Depen Sigma")
+for (i in 1:4){
+lines(N, Sigma_pos_dep_alpha_type_I[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("top", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+
+plot(N,rep(0, length(N)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Neg Depen Sigma")
+for (i in 1:4){
+lines(N, Sigma_neg_dep_alpha_type_I[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("top", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+```
+
+## Testing different Sample Size
+```{r}
+set.seed(0)
+# Type I Error Simulation
+N1 <- c(5, 10, 100, 200, 300, 400, 500)
+alpha_type_I <- matrix(0, length(N), 4)
+for (k in N){
+  # mu1 & mu2 = (0,0,0) because want to check if wrongly reject Null Hypothesis
+  alpha_type_I[which(k==N1), ] <- simulate(B = 300, n = k, G = 3, mu2=c(0,0,0), Sigma = Sigma_ind_eq)
+}
+
+# Power Simulation
+N2 <- c(5, 10, 20)
+power_results <- matrix(0, length(N2), 4)
+for (k in N2){
+  # mu1 & mu2 = (0,0,0) because want to check if correctly reject Null Hypothesis
+  power_results[which(k==N2), ] <- simulate(B = 300, n = k, G = 3, mu2=c(3,0,0), Sigma = Sigma_ind_eq)
+}
+
+par(mfrow=c(1, 2))
+
+plot(N1,rep(0, length(N1)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Type I Error with Different Ns")
+for (i in 1:4){
+lines(N1, alpha_type_I[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("topleft", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+
+
+plot(N2,rep(0, length(N2)),type="n", ylim=c(0, 1),
+     xlab="Group sample size n", ylab="Power")
+title(main="Power with Different Ns")
+for (i in 1:4){
+lines(N2, power_results[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("center", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+```
+
+
+
+```{r}
+# ## Testing different Sample Size (Imbalanced)
+set.seed(0)
+# Type I Error Simulation
+N1 <- c(30, 100, 200, 300, 400, 500)
+alpha_imbalanced <- matrix(0, length(N1), 4)
+for (k in N1){
+  alpha_imbalanced[which(k==N1), ] <- simulate_imbalanced(B=300,n=k,
+                                                          w1=0.20,w2=0.40,w3=0.40,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+}
+
+alpha_imbalanced_2 <- matrix(0, length(N1), 4)
+for (k in N1){
+  alpha_imbalanced_2[which(k==N1), ] <- simulate_imbalanced(B=300,n=k,
+                                                          w1=0.60,w2=0.20,w3=0.20,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+}
+
+par(mfrow=c(1, 2))
+plot(N1,rep(0, length(N1)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Imbalance Ratio(.20,.40,.40)")
+for (i in 1:4){
+lines(N1, alpha_imbalanced[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("topleft", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+
+plot(N1,rep(0, length(N1)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Imbalance Ratio(.60,.20,.20)")
+for (i in 1:4){
+lines(N1, alpha_imbalanced_2[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("topleft", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+
+
+N1 <- c(30, 100, 200, 300, 400, 500)
+alpha_imbalanced_3 <- matrix(0, length(N1), 4)
+for (k in N1){
+  alpha_imbalanced_3[which(k==N1), ] <- simulate_imbalanced(B=300,n=k,
+                                                          w1=0.10,w2=0.45,w3=0.45,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+}
+
+alpha_imbalanced_4 <- matrix(0, length(N1), 4)
+for (k in N1){
+  alpha_imbalanced_4[which(k==N1), ] <- simulate_imbalanced(B=300,n=k,
+                                                          w1=0.90,w2=0.05,w3=0.05,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+}
+
+par(mfrow=c(1, 2))
+plot(N1,rep(0, length(N1)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Imbalance Ratio(.10,.45,.45)")
+for (i in 1:4){
+lines(N1, alpha_imbalanced_3[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("topleft", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+
+plot(N1,rep(0, length(N1)),type="n", ylim=c(0, .28),
+     xlab="Group sample size n", ylab="Type I Error")
+title(main="Imbalance Ratio(.90,.10,.10)")
+for (i in 1:4){
+lines(N1, alpha_imbalanced_4[, i], col=i+1, type = 'l', lwd=2)
+}
+abline(h=0.05)
+legend("topleft", legend = tests, col = c(2:5),
+       lwd = rep(2, 4), bty = "n")
+
+```
+
+
+```{r}
+# Testing different Sample Size (Imbalanced group - x axis is degree)
+set.seed(0)
+# Type I Error Simulation n=15
+degrees <- c(1,2,3,4)
+n<-12
+n15_alpha_imbalanced_degree <- matrix(0, 4, 4)
+n15_alpha_imbalanced_degree[1, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.10,w2=0.45,w3=0.45,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n15_alpha_imbalanced_degree[2, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.20,w2=0.40,w3=0.40,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n15_alpha_imbalanced_degree[3, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.60,w2=0.20,w3=0.20,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n15_alpha_imbalanced_degree[4, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.90,w2=0.05,w3=0.05,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+
+# Type I Error Simulation n=30
+degrees <- c(1,2,3,4)
+n<-24
+n30_alpha_imbalanced_degree <- matrix(0, 4, 4)
+n30_alpha_imbalanced_degree[1, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.10,w2=0.45,w3=0.45,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n30_alpha_imbalanced_degree[2, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.20,w2=0.40,w3=0.40,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n30_alpha_imbalanced_degree[3, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.60,w2=0.20,w3=0.20,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n30_alpha_imbalanced_degree[4, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.90,w2=0.05,w3=0.05,
+                                                          G=3,mu1=c(0,0,0),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+
+# Set up the plot area n=15
+barplot(matrix(n15_alpha_imbalanced_degree, nrow = length(degrees), byrow = TRUE),
+        beside = TRUE,
+        ylim = c(0, 0.28),
+        xlab = "Imbalanced Group Ratios",
+        ylab = "Type I Error",
+        main = "Type I Error Rate & Imbalance Ratio (N=12)",
+        col = c(2:5),
+        names.arg = c("(0.10,0.45,0.45)", "(0.20,0.40,0.40)", "(0.60,0.20,0.20)", "(0.90,0.20,0.20)"))  # Add names to the bars)
+
+# Add the legend
+legend("topright",
+       legend = tests,
+      fill = c(2:5),
+       bty = "n")
+
+# Add horizontal line at y = 0.05
+abline(h = 0.05)
+
+# Set up the plot area n=30
+barplot(matrix(n30_alpha_imbalanced_degree, nrow = length(degrees), byrow = TRUE),
+        beside = TRUE,
+        ylim = c(0, 0.28),
+        xlab = "Imbalanced Group Ratios",
+        ylab = "Type I Error",
+        main = "Type I Error Rate & Imbalance Ratio (N=24)",
+        col = c(2:5),
+        names.arg = c("(0.10,0.45,0.45)", "(0.20,0.40,0.40)", "(0.60,0.20,0.20)", "(0.90,0.20,0.20)"))  # Add names to the bars)
+
+# Add the legend
+legend("topright",
+       legend = tests,
+      fill = c(2:5),
+       bty = "n")
+
+# Add horizontal line at y = 0.05
+abline(h = 0.05)
+```
+
+
+```{r}
+# Power Simulation
+# Testing different Sample Size (Imbalanced group - x axis is degree)
+set.seed(0)
+# Type I Error Simulation n=15
+degrees <- c(1,2,3,4)
+n<-12
+n15_alpha_imbalanced_degree <- matrix(0, 4, 4)
+n15_alpha_imbalanced_degree[1, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.10,w2=0.45,w3=0.45,
+                                                          G=3,mu1=c(3,3,3),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n15_alpha_imbalanced_degree[2, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.20,w2=0.40,w3=0.40,
+                                                          G=3,mu1=c(3,3,3),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n15_alpha_imbalanced_degree[3, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.60,w2=0.20,w3=0.20,
+                                                          G=3,mu1=c(3,3,3),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+n15_alpha_imbalanced_degree[4, ] <- simulate_imbalanced(B=300,n=n,
+                                                          w1=0.90,w2=0.05,w3=0.05,
+                                                          G=3,mu1=c(3,3,3),mu2=c(0,0,0),
+                                                              mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+
+# Type I Error Simulation n=30
+# degrees <- c(1,2,3,4)
+# n<-30
+# n30_alpha_imbalanced_degree <- matrix(0, 4, 4)
+# n30_alpha_imbalanced_degree[1, ] <- simulate_imbalanced(B=300,n=n,
+#                                                           w1=0.10,w2=0.45,w3=0.45,
+#                                                           G=3,mu1=c(3,3,3),mu2=c(0,0,0),
+#                                                               mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+# n30_alpha_imbalanced_degree[2, ] <- simulate_imbalanced(B=300,n=n,
+#                                                           w1=0.20,w2=0.40,w3=0.40,
+#                                                           G=3,mu1=c(3,3,3),mu2=c(0,0,0),
+#                                                               mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+# n30_alpha_imbalanced_degree[3, ] <- simulate_imbalanced(B=300,n=n,
+#                                                           w1=0.60,w2=0.20,w3=0.20,
+#                                                           G=3,mu1=c(3,3,3),mu2=c(0,0,0),
+#                                                               mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+# n30_alpha_imbalanced_degree[4, ] <- simulate_imbalanced(B=300,n=n,
+#                                                           w1=0.90,w2=0.05,w3=0.05,
+#                                                           G=3,mu1=c(3,3,3),mu2=c(0,0,0),
+#                                                               mu3=c(0,0,0),Sigma=Sigma_ind_eq)
+# Set par() with xpd=TRUE to allow plotting outside the plot region
+par(xpd = TRUE)
+# Set up the plot area n=15
+barplot(matrix(n15_alpha_imbalanced_degree, nrow = length(degrees), byrow = TRUE),
+        beside = TRUE,
+        ylim = c(0, 1),
+        xlab = "Imbalanced Group Ratios",
+        ylab = "Power",
+        #main = "Imbalance Ratio (N=15, Indep Eq Sigma)",
+        col = c(2:5),
+        names.arg = c("(0.10,0.45,0.45)", "(0.20,0.40,0.40)", "(0.60,0.20,0.20)", "(0.90,0.20,0.20)"))  # Add names to the bars)
+
+# Add the title aligned to the left
+title(main = "Power & Imbalance Ratio (N=12)",
+      xlab = "Imbalanced Group Ratios",  # Remove the x-axis label
+      ylab = "Power",  # Remove the y-axis label
+      #line = -1,  # Move the title up
+      adj = 0)  # Set the alignment to the left
+
+# Add the legend
+legend("topright",
+       inset = c(0,-0.30),  # Adjust the inset values to position the legend outside the bars
+       legend = tests,
+      fill = c(2:5),
+       bty = "n")
+
+# Add horizontal line at y = 0.05
+abline(h = 0.05)
+par(xpd = FALSE)
+
+# # Set up the plot area n=30
+# barplot(matrix(n30_alpha_imbalanced_degree, nrow = length(degrees), byrow = TRUE),
+#         beside = TRUE,
+#         ylim = c(0, 1),
+#         xlab = "Imbalanced Group Ratios",
+#         ylab = "Power",
+#         main = "Imbalance Ratio (N=30, Indep Eq Sigma)",
+#         col = c(2:5),
+#         names.arg = c("(0.10,0.45,0.45)", "(0.20,0.40,0.40)", "(0.60,0.20,0.20)", "(0.90,0.20,0.20)"))  # Add names to the bars)
+# 
+# # Add the legend
+# legend("topright",
+#        y = 1.1,  # Adjust the value to move the legend higher
+#        legend = tests,
+#       fill = c(2:5),
+#        bty = "n")
+# 
+# # Add horizontal line at y = 0.05
+# abline(h = 0.05)
+
+# N <- c(5, 10, 20)
+# power_results <- matrix(0, length(N), 4)
+# for (k in N){
+#   # mu1 & mu2 = (0,0,0) because want to check if correctly reject Null Hypothesis
+#   power_results[which(k==N), ] <- simulate(B = 300, n = k, G = 3, mu2=c(3,0,0), Sigma = Sigma_ind_eq)
+# }
+# plot(N,rep(0, length(N)),type="n", ylim=c(0, 1),
+#      xlab="Group sample size n", ylab="Power")
+# title(main="Independent and Equal Variance Sigma")
+# for (i in 1:4){
+# lines(N, power_results[, i], col=i+1, type = 'l', lwd=2)
+# }
+# abline(h=0.05)
+# legend("bottomright", legend = tests, col = c(2:5),
+#        lwd = rep(2, 4), bty = "n")
+```
+
+## Power
+```{r}
+# Power simulations
+# C <- seq(0, 2.5, .1)
+# results <- matrix(0, length(C), 4)
+# for (i in 1:length(C)){
+#   results[i, ] <- simulate(100, 10, 3, C[i]+c(0,0))
+# }
+# plot(0,0,type="n", xlim=c(min(C), max(C)), ylim=c(0, 1),
+#      xlab="Values for n", ylab="Power")
+# for (i in 1:4){
+# lines(C, results[, i], type = "l", col = i+1, lwd=2)
+# }
+# abline(h=0.05, col = 8, lty=2)
+# legend("bottomright", legend = tests, col = c(2:5),
+#        lwd = rep(2, 4))
+```
+
+<!-- ```{r} -->
+<!-- C1 <- seq(0, 2.5, .1) -->
+<!-- results1 <- matrix(0, length(C1), 4) -->
+<!-- for (i in 1:length(C1)){ -->
+<!--   results1[i, ] <- simulate(100, 10, 3, c(C1[i],0,0)) -->
+<!-- } -->
+<!-- plot(0,0,type="n", xlim=c(min(C1), max(C1)), ylim=c(0, 1), -->
+<!--      xlab="Values for c1", ylab="Power") -->
+<!-- for (i in 1:4){ -->
+<!-- lines(C1, results1[, i], type = "l", col = i+1, lwd=2) -->
+<!-- } -->
+<!-- abline(h=0.05, col = 8, lty=2) -->
+<!-- legend("bottomright", legend = tests, col = c(2:5), -->
+<!--        lwd = rep(2, 4)) -->
+
+<!-- C2 <- seq(0, 2.5, .1) -->
+<!-- results2 <- matrix(0, length(C2), 4) -->
+<!-- for (i in 1:length(C2)){ -->
+<!--   results2[i, ] <- simulate(200, 10, 3, c(0,C2[i],0)) -->
+<!-- } -->
+<!-- plot(0,0,type="n", xlim=c(min(C2), max(C2)), ylim=c(0, 1), -->
+<!--      xlab="Values for c2", ylab="Power") -->
+<!-- for (i in 1:4){ -->
+<!-- lines(C2, results2[, i], type = "l", col = i+1, lwd=2) -->
+<!-- } -->
+<!-- abline(h=0.05, col = 8, lty=2) -->
+<!-- legend("bottomright", legend = tests, col = c(2:5), -->
+<!--        lwd = rep(2, 4)) -->
+
+<!-- ``` -->
+
+

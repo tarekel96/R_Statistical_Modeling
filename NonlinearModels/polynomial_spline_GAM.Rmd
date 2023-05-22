@@ -1,0 +1,285 @@
+---
+title: "Nonlinear models - polynomial, spline, GAM"
+author: "Tarek El-Hajjaoui"
+date: "2023-05-21"
+output: html_document
+---
+
+## ISLR2 Chapter 7: Questions 9 & 10
+
+```{r, message=FALSE}
+library(caret) # trainControl( ), train( ) used for cross validation
+library(splines) # bs() used to create matrix of basis functions for splines
+```
+
+### ISLR2 Chapter 7: Question 9
+
+This question uses the variables dis (the weighted mean of distances to five Boston employment centers) and nox (nitrogen oxides concentration in parts per 10 million) from the Boston data. We will treat dis as the predictor and nox as the response.
+
+Preprocessing Boston dataset
+
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/ISLRv2_Datasets/Boston.csv'
+df_boston <- read.csv(file_path, row.names = NULL, header = TRUE)
+# keep only the 'dis' and 'nox' columns
+df_boston <- df_boston[, c("dis", "nox")]
+df_boston <- na.omit(df_boston) # drop na rows
+# drop column X from the dataframe
+df_boston$X <- NULL
+```
+
+```{r}
+head(df_boston)
+```
+
+```{r}
+str(df_boston) # ensure data types correct now
+colSums(is.na(df_boston)) # count number of nulls in each column
+nrow(df_boston)
+```
+
+```{r}
+plot(df_boston$dis, df_boston$nox)
+```
+
+#### 9 a)
+
+Use the poly() function to fit a cubic polynomial regression to predict nox using dis. Report the regression output, and plot the resulting data and polynomial fits.
+
+```{r}
+cubic_fit <- lm(nox ~ poly(dis, 3), data = df_boston)
+```
+
+Report the regression output
+```{r}
+# columns are a basis of orthogonal polynomials, 
+# which means that each column is a linear combination
+# of the variables dis, dis^2, dis^3 and dis^4
+summary(cubic_fit)
+```
+
+Plot the resulting data and polynomial fits
+```{r}
+dislims <- range(df_boston$dis)
+
+# grid of values for dis at which we want predictions
+dis.grid <- seq(from = dislims[1], to = dislims[2])
+
+nox_pred <- predict(cubic_fit, newdata = list(dis = dis.grid), se = TRUE)
+
+plot(df_boston$dis, df_boston$nox, xlab = "dis", ylab = "nox", main = "Cubic Polynomial Regression")
+lines(dis.grid, nox_pred$fit, col = "red", lwd = 2)
+legend("topright", legend = "Cubic Fit", col = "red", lwd = 2)
+```
+
+
+#### 9 b)
+
+Plot the polynomial fits for a range of different polynomial degrees (say, from 1 to 10), and report the associated residual sum of squares.
+
+```{r}
+# initialize an empty vector to store the RSS values
+rss_values <- numeric(10)
+
+par(mfrow = c(2, 5)) # 2 x 5 plotting matrix
+
+# adjust bottom margin for the plots
+par(oma = c(0, 0, 2, 0) + 0.1, mar = c(2, 1, 2, 1))
+
+# iterate over different polynomial degrees
+for (degree in 1:10) {
+  # fit the polynomial regression model
+  fit <- lm(nox ~ poly(dis, degree), data = df_boston)
+  # predict the response variable
+  nox_pred <- predict(fit, newdata = list(dis = dis.grid), se = TRUE)
+  # calculate the residual sum of squares (RSS)
+  rss <- sum((df_boston$nox - nox_pred$fit)^2)
+  # store the RSS value
+  rss_values[degree] <- rss
+  # plot the polynomial fit
+  plot(df_boston$dis, df_boston$nox, xlab = "dis", ylab = "nox", main = paste("Polynomial Deg:", degree))
+  lines(dis.grid, nox_pred$fit, col = "red", lwd = 2)
+  text(x = max(df_boston$dis), y = max(df_boston$nox), paste("RSS =", round(rss, 2)),
+       pos = 2, offset = 0.5, adj = c(1, 1))
+}
+
+# associated RSS values
+for (degree in 1:10) {
+  cat("Degree", degree, ": RSS =", rss_values[degree], "\n")
+}
+
+par(mfrow = c(1,1))
+```
+
+
+#### 9 c)
+
+Perform cross-validation or another approach to select the optimal degree for the polynomial, and explain your results.
+
+```{r}
+set.seed(0)
+
+# range of polynomial degrees to consider
+degree_range <- 1:10
+
+# initialize an empty vector to store the cross-validated MSE values
+mse_values <- numeric(length(degree_range))
+
+# perform cross-validation for each degree
+for (i in degree_range) {
+  # polynomial features for the given degree
+  poly_features <- poly(df_boston$dis, i)
+  
+  # combine the polynomial features with the response variable
+  poly_data <- data.frame(nox = df_boston$nox, poly_features)
+  
+  # perform cross-validation using 10-fold cross-validation
+  cv <- trainControl(method = "cv", number = 10) # from caret library
+  
+  # fit the polynomial regression model and evaluate MSE using cross-validation
+  fit <- train(nox ~ ., data = poly_data, method = "lm", trControl = cv) # from caret library
+  
+  # store the cross-validated MSE value
+  mse_values[i] <- fit$results$RMSE
+}
+
+# find the optimal degree with the lowest cross-validated MSE
+optimal_degree <- which.min(mse_values)
+
+# plot the cross-validated MSE values
+plot(degree_range, mse_values, type = "b", xlab = "Polynomial Degree", ylab = "Cross-Validated RMSE")
+
+# Add a point to indicate the optimal degree
+points(optimal_degree, mse_values[optimal_degree], col = "red", pch = 16)
+
+# Add a text label for the optimal degree
+legend_text <- paste("Optimal Degree:", optimal_degree, "\nCross-Validated RMSE:", mse_values[optimal_degree])
+legend("topleft", legend = legend_text, col = "red", pch = 16)
+
+# print optimal degree and the associated cross-validated MSE value
+cat("Optimal Degree:", optimal_degree, "\n")
+cat("Cross-Validated RMSE:", mse_values[optimal_degree], "\n")
+```
+
+
+#### 9 d)
+
+Use the bs() function to fit a regression spline to predict nox using dis. Report the output for the fit using four degrees of freedom. How did you choose the knots? Plot the resulting fit.
+
+Report the output for the fit using four degrees of freedom
+```{r}
+# regression spline with four degrees of freedom
+spline_fit <- lm(nox ~ bs(dis, df = 4), data = df_boston)
+summary(spline_fit)
+```
+
+Plot the resulting fit
+```{r}
+spline_pred <- predict(spline_fit, newdata = list(dis = dis.grid), se = T)
+plot(df_boston$dis, df_boston$nox, xlab = "dis", ylab = "nox", main = "Spline Regression (df=4)")
+# uncomment below if want to see standard 95% confidence interval
+# lines(dis.grid, spline_pred$fit + 2 * spline_pred$se, lty = "dashed", col = "red")
+# lines(dis.grid, spline_pred$fit - 2 * spline_pred$se, lty = "dashed", col = "red")
+lines(dis.grid, spline_pred$fit, col = "red", lwd = 2)
+```
+
+How the knots were chosen?
+
+- The bs() function automatically determines the optimal placement of knots based on the data. The number of degrees of freedom specified determines the flexibility of the spline fit, but the actual knot locations are chosen internally by the bs() function.
+
+#### 9 e)
+
+Now fit a regression spline for a range of degrees of freedom, and plot the resulting fits and report the resulting RSS. Describe the results obtained.
+
+```{r}
+# define the range of degrees of freedom to consider
+df_range <- 3:12
+
+# initialize an empty vector to store the RSS values
+rss_values <- numeric(length(df_range))
+
+par(mfrow = c(2, 5)) # 2 x 5 plotting matrix
+
+# adjust bottom margin for the plots
+par(oma = c(0, 0, 2, 0) + 0.1, mar = c(2, 1, 2, 1))
+
+# iterate over the range of degrees of freedom
+for (i in df_range) {
+  # fit regression spline with the current degrees of freedom
+  spline_fit <- lm(nox ~ bs(dis, df = i), data = df_boston)
+  
+  # predict the response variable
+  nox_pred <- predict(spline_fit, newdata = list(dis = dis.grid), se = T)
+  
+  # calculate the residual sum of squares (RSS)
+  rss <- sum((df_boston$nox - nox_pred$fit)^2)
+  
+  # store the RSS value
+  rss_values[i] <- rss
+  
+  # plot the data
+  plot(df_boston$dis, df_boston$nox, xlab = "dis", ylab = "nox", main = paste("Spline Fit ( df = ", i, ")"))
+  
+  # plot the resulting fit
+  lines(dis.grid, nox_pred$fit, col = "red", lwd = 2)
+  
+  text(x = max(df_boston$dis), y = max(df_boston$nox), paste("RSS  =", round(rss, 2)),
+       pos = 2, offset = 0.5, adj = c(1, 1))
+}
+
+# print the resulting RSS values
+for (i in df_range) {
+  cat("Degrees of Freedom:", i, "RSS =", rss_values[i], "\n")
+}
+
+```
+
+
+#### 9 f)
+
+Perform cross-validation or another approach in order to select the best degrees of freedom for a regression spline on this data. Describe your results.
+
+```{r}
+set.seed(0)
+
+# range of polynomial degrees to consider
+degree_range <- 3:12
+index <- 1
+
+# initialize an empty vector to store the cross-validated MSE values
+mse_values <- numeric(length(degree_range))
+
+# perform cross-validation for each degree
+for (i in degree_range) {
+  # spline features for the given degree
+  bs_features <- bs(df_boston$dis, df = i)
+  
+  # combine the spline features with the response variable
+  spline_data <- data.frame(nox = df_boston$nox, bs_features)
+  
+  # perform cross-validation using 10-fold cross-validation
+  cv <- trainControl(method = "cv", number = 10) # from caret library
+  
+  # fit the spline regression model and evaluate MSE using cross-validation
+  fit <- train(nox ~ ., data = spline_data, method = "lm", trControl = cv) # from caret library
+  
+  # store the cross-validated MSE value
+  mse_values[index] <- fit$results$RMSE
+  
+  # increment the index
+  index <- index + 1
+}
+
+# find the optimal degree with the lowest cross-validated MSE
+optimal_degree <- degree_range[which.min(mse_values)]
+
+# plot the cross-validated MSE values
+plot(degree_range, mse_values, type = "b", xlab = "Spline df", ylab = "Cross-Validated RMSE")
+
+# point to indicate the optimal degree
+points(optimal_degree, mse_values[which.min(mse_values)], col = "red", pch = 16)
+
+# text label for the optimal degree
+legend_text <- paste("Optimal Degree:", optimal_degree, "\nCross-Validated RMSE:", mse_values[which.min(mse_values)])
+legend("topright", legend = legend_text, col = "red", pch = 16)
+```
