@@ -10,6 +10,9 @@ output: html_document
 ```{r, message=FALSE}
 library(caret) # trainControl( ), train( ) used for cross validation
 library(splines) # bs() used to create matrix of basis functions for splines
+library(leaps) # Forward stepwise selection
+library(mgcv)
+library(ggplot2)
 ```
 
 ### ISLR2 Chapter 7: Question 9
@@ -133,8 +136,15 @@ for (i in degree_range) {
   # combine the polynomial features with the response variable
   poly_data <- data.frame(nox = df_boston$nox, poly_features)
   
+  # create a list of seeds for cross-validation
+  cv_seeds <- vector("list", 11)
+  for (j in 1:10) {
+    cv_seeds[[j]] <- sample.int(1000, 1)  # use a different seed for each fold
+  }
+  cv_seeds[[11]] <- sample.int(1000, 1)  # Additional seed element
+  
   # perform cross-validation using 10-fold cross-validation
-  cv <- trainControl(method = "cv", number = 10) # from caret library
+  cv <- trainControl(method = "cv", number = 10, seeds = cv_seeds) # from caret library
   
   # fit the polynomial regression model and evaluate MSE using cross-validation
   fit <- train(nox ~ ., data = poly_data, method = "lm", trControl = cv) # from caret library
@@ -161,6 +171,10 @@ cat("Optimal Degree:", optimal_degree, "\n")
 cat("Cross-Validated RMSE:", mse_values[optimal_degree], "\n")
 ```
 
+Polynomial 10-Fold CV Results:
+
+- 10-fold cross validation was performed on different polynomial degrees, ranging from 1 - 10, with the help of the caret library. The train method returns a dataframe of the training error rate for the 10-fold validation. For each ith degree, the root mean squared error (RMSE) is stored. In the graph above the RMSE for each ith degree is plotted. 3rd degree has the lowest RMSE so a polynomial degree of 3 is chosen. It should be noted there are different factors that influence the results such as random seeding; however, overall the RMSE for all degrees are relatively close.
+
 
 #### 9 d)
 
@@ -185,7 +199,7 @@ lines(dis.grid, spline_pred$fit, col = "red", lwd = 2)
 
 How the knots were chosen?
 
-- The bs() function automatically determines the optimal placement of knots based on the data. The number of degrees of freedom specified determines the flexibility of the spline fit, but the actual knot locations are chosen internally by the bs() function.
+- The bs() function with df specified determines the placement of knots based on the data. The number of degrees of freedom (df) controls the number and placement of internal knots in the spline, which determines the flexibility of the spline fit.
 
 #### 9 e)
 
@@ -234,6 +248,9 @@ for (i in df_range) {
 
 ```
 
+Spline Degrees of Freedom Results:
+
+- The spline model with 8 degrees of freedom has the lowest residual sum of squares (RSS), which suggests its the optimal df value. In general, higher values of df allow for more flexibility and can result in a better fit to the data. However as the df becomes too high, the model starts to fit the noise and random variations in the training data, leading to overfitting. The model becomes too complex and loses its ability to generalize well to new data, which is why the df values higher than 8 have higher RSS values.
 
 #### 9 f)
 
@@ -257,8 +274,15 @@ for (i in degree_range) {
   # combine the spline features with the response variable
   spline_data <- data.frame(nox = df_boston$nox, bs_features)
   
+  # create a list of seeds for cross-validation
+  cv_seeds <- vector("list", 11)
+  for (j in 1:10) {
+    cv_seeds[[j]] <- sample.int(1000, 1)  # use a different seed for each fold
+  }
+  cv_seeds[[11]] <- sample.int(1000, 1)  # Additional seed element  
+  
   # perform cross-validation using 10-fold cross-validation
-  cv <- trainControl(method = "cv", number = 10) # from caret library
+  cv <- trainControl(method = "cv", number = 10, seeds = cv_seeds) # from caret library
   
   # fit the spline regression model and evaluate MSE using cross-validation
   fit <- train(nox ~ ., data = spline_data, method = "lm", trControl = cv) # from caret library
@@ -283,3 +307,114 @@ points(optimal_degree, mse_values[which.min(mse_values)], col = "red", pch = 16)
 legend_text <- paste("Optimal Degree:", optimal_degree, "\nCross-Validated RMSE:", mse_values[which.min(mse_values)])
 legend("topright", legend = legend_text, col = "red", pch = 16)
 ```
+
+Spline Degrees of Freedom 10-Fold CV Results:
+
+- The results above provide stronger evidence about choosing the optimal df because 10-fold cross validation was performed on different degrees of freedom, ranging from 3 - 12, with the help of the caret library. The train method returns a dataframe of the training error rate for the 10-fold validation. For each ith degree of freedom, the root mean squared error (RMSE) is stored. In the graph above the RMSE for each ith degree is plotted. 12 degrees of freedom has the lowest RMSE but, 4 degrees of freedom has a very comparable RSS value and perhaps would be a better model choice to minimize overfitting effects.
+
+### ISLR2 Chapter 7: Question 10
+
+Loading College dataset and preprocessing
+
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/ISLRv2_Datasets/College.csv'
+df_college <- read.csv(file_path, row.names = NULL, header = TRUE)
+df_college <- na.omit(df_college)
+# drop column X from the dataframe
+df_college$X <- NULL
+```
+
+```{r}
+categorical_cols <- c('Private')
+df_college[categorical_cols] <- lapply(df_college[categorical_cols], as.factor)
+```
+
+```{r}
+str(df_college) # ensure data types correct now
+colSums(is.na(df_college)) # count number of nulls in each column
+nrow(df_college)
+```
+
+#### 10 a)
+
+Split the data into a training set and a test set. Using out-of-state tuition as the response and the other variables as the predictors.
+
+Split the data set into a training set and a test set.
+```{r}
+set.seed(0) # set random seed for reproducibility
+# split the dataframe into train and test sets
+train_indices <- createDataPartition(df_college$Outstate, p = 0.7, list = FALSE)
+train_college <- df_college[train_indices, ]
+train_y <- data.matrix(subset(train_college, select=c('Outstate')))
+train_X <- data.matrix(train_college[,!names(train_college) %in% c("Outstate")])
+dim(train_X);dim(train_y) # checking dims of split data
+test_college <- df_college[-train_indices, ]
+test_y <- data.matrix(subset(test_college, select=c('Outstate')))
+test_X <- data.matrix(test_college[,!names(test_college) %in% c("Outstate")])
+dim(test_X);dim(test_y) # checking dims of split data
+```
+
+Perform forward stepwise selection on the training set in order to identify a satisfactory model that uses just a subset of the predictors.
+```{r}
+set.seed(0)
+forward_fit <- regsubsets(Outstate ~ ., data = train_college, method = "forward")
+
+# find the best model based on BIC (Bayesian Information Criterion)
+best_model <- which.min(summary(forward_fit)$bic)
+
+cat("Best model using ", best_model, " predictors.\n")
+
+# get the predictors selected by the best model
+selected_predictors <- names(coef(forward_fit, best_model))[-1]
+
+cat("Selected Predictors:\n")
+coef(forward_fit, best_model)
+```
+
+#### 10 b)
+
+Fit a GAM on the training data, using out-of-state tuition as the response and the features selected in the previous step as the predictors. Plot the results, and explain your findings.
+
+```{r}
+set.seed(0)
+# fit a GAM using the selected predictors
+gam_fit <- gam(Outstate ~ Private + s(Room.Board) + s(Terminal) + s(perc.alumni) + s(Expend) + s(Grad.Rate),
+               data = train_college)
+plot(gam_fit, pages = 1, se = TRUE, col = "blue")
+```
+
+The solid line in the plot above represents the estimated effect of a predictor on the response (Outstate). It depicts the relationship between the predictor and the response after adjusting for the effects of all other variables in the model. The two dotted lines represent a 95% confidence interval. It can be observed that Room.Board, Expend and Grad.Rate each appear to have a very non-linear relationship with Outstate. per.alumni appears to have a non-linear relationship with Outstate but overall its pattern could arguably be generalized as a positive linear relationship with response. Terminal has a slightly non-linear relationship with the response with a slope that seems to converge at higher levels of Terminal.
+
+#### 10 c)
+
+Evaluate the model obtained on the test set, and explain the results obtained.
+
+```{r}
+set.seed(0)
+# Predict values for the test set
+predicted_values <- predict(gam_fit, newdata = test_college)
+
+# Calculate mean squared error (MSE)
+mse <- mean((test_college$Outstate - predicted_values)^2)
+cat("Test set Mean Squared Error:", mse, "\n")
+
+# Calculate root mean squared error (RMSE)
+rmse <- sqrt(mse)
+cat("Test set Root Mean Squared Error:", rmse, "\n")
+
+cat("Standard Deviation of Outstate from dataset:", sd(test_college$Outstate), "\n")
+```
+
+GAM Test set Results
+
+- The Generalized Additive Model's test set MSE and RMSE is printed above. On average, the model's predictions are around 1,932.084 off from the actual out-of-state tuition. For comparison, the standard deviation of the test set's Outstate, 4,114.738, is printed. Since the RMSE is significantly smaller than the variance, it suggests that the model is capturing a significant proportion of the variance.
+
+#### 10 d)
+
+For which variables, if any, is there evidence of a non-linear relationship with the response?
+
+```{r}
+summary(gam_fit)
+```
+
+- In the summary output, the smoothing term p-values tell us which variables have evidence of a non-linear relationship. A p-value smaller than the significance level (0.05) suggests that there is evidence of a non-linear relationship between that predictor and the response variable. All 5 smoothing terms have evidence for non-linear relationships, but some have stronger evidence than others. Room.Board, Expend, and Grad.Rate have the strongest evidence for having a non-linear relationship which aligns with the graphs observations in part b. In terms of non-linear relationship strength, perc.alumni is next and lastly Terminal has the least evidence for having  anon-linear relationship with the response.
