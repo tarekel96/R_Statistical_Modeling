@@ -13,6 +13,7 @@ library(splines) # bs() used to create matrix of basis functions for splines
 library(leaps) # Forward stepwise selection
 library(mgcv)
 library(ggplot2)
+library(ISLR2) # data(College)
 ```
 
 ### ISLR2 Chapter 7: Question 9
@@ -173,7 +174,7 @@ cat("Cross-Validated RMSE:", mse_values[optimal_degree], "\n")
 
 Polynomial 10-Fold CV Results:
 
-- 10-fold cross validation was performed on different polynomial degrees, ranging from 1 - 10, with the help of the caret library. The train method returns a dataframe of the training error rate for the 10-fold validation. For each ith degree, the root mean squared error (RMSE) is stored. In the graph above the RMSE for each ith degree is plotted. 3rd degree has the lowest RMSE so a polynomial degree of 3 is chosen. It should be noted there are different factors that influence the results such as random seeding; however, overall the RMSE for all degrees are relatively close.
+- 10-fold cross validation was performed on different polynomial degrees, ranging from 1 - 10, with the help of the caret library. The train method returns a dataframe of the training error rate for the 10-fold validation. For each ith degree, the root mean squared error (RMSE) is stored. In the graph above the RMSE for each ith degree is plotted. 4th degree has the lowest RMSE so a polynomial degree of 4 is chosen. It should be noted there are different factors that influence the results such as random seeding; however, overall the RMSE for all degrees are relatively close.
 
 
 #### 9 d)
@@ -310,7 +311,7 @@ legend("topright", legend = legend_text, col = "red", pch = 16)
 
 Spline Degrees of Freedom 10-Fold CV Results:
 
-- The results above provide stronger evidence about choosing the optimal df because 10-fold cross validation was performed on different degrees of freedom, ranging from 3 - 12, with the help of the caret library. The train method returns a dataframe of the training error rate for the 10-fold validation. For each ith degree of freedom, the root mean squared error (RMSE) is stored. In the graph above the RMSE for each ith degree is plotted. 12 degrees of freedom has the lowest RMSE but, 4 degrees of freedom has a very comparable RSS value and perhaps would be a better model choice to minimize overfitting effects.
+- The results above provide stronger evidence about choosing the optimal df because 10-fold cross validation was performed on different degrees of freedom, ranging from 3 - 12, with the help of the caret library. The train method returns a dataframe of the training error rate for the 10-fold validation. For each ith degree of freedom, the root mean squared error (RMSE) is stored. In the graph above the RMSE for each ith degree is plotted. 10 degrees of freedom has the lowest RMSE but, 6 degrees of freedom has a very comparable RSS value and perhaps would be a better model choice to minimize overfitting effects.
 
 ### ISLR2 Chapter 7: Question 10
 
@@ -318,7 +319,8 @@ Loading College dataset and preprocessing
 
 ```{r}
 file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/ISLRv2_Datasets/College.csv'
-df_college <- read.csv(file_path, row.names = NULL, header = TRUE)
+#df_college <- read.csv(file_path, row.names = NULL, header = TRUE)
+df_college <- data(College)
 df_college <- na.omit(df_college)
 # drop column X from the dataframe
 df_college$X <- NULL
@@ -357,12 +359,12 @@ dim(test_X);dim(test_y) # checking dims of split data
 Perform forward stepwise selection on the training set in order to identify a satisfactory model that uses just a subset of the predictors.
 ```{r}
 set.seed(0)
-forward_fit <- regsubsets(Outstate ~ ., data = train_college, method = "forward")
+forward_fit <- regsubsets(Outstate ~ ., nvmax = 18, data = train_college, method = "forward")
 
 # find the best model based on BIC (Bayesian Information Criterion)
 best_model <- which.min(summary(forward_fit)$bic)
 
-cat("Best model using ", best_model, " predictors.\n")
+cat("Best model using", best_model, "predictors.\n")
 
 # get the predictors selected by the best model
 selected_predictors <- names(coef(forward_fit, best_model))[-1]
@@ -378,12 +380,18 @@ Fit a GAM on the training data, using out-of-state tuition as the response and t
 ```{r}
 set.seed(0)
 # fit a GAM using the selected predictors
-gam_fit <- gam(Outstate ~ Private + s(Room.Board) + s(Terminal) + s(perc.alumni) + s(Expend) + s(Grad.Rate),
+gam_fit <- gam(Outstate ~ Private + s(Apps) + s(Accept) + s(Top10perc) + s(F.Undergrad) + s(Room.Board) + s(Personal) + s(PhD) + s(S.F.Ratio) + s(Terminal) + s(perc.alumni) + s(Expend) + s(Grad.Rate),
                data = train_college)
 plot(gam_fit, pages = 1, se = TRUE, col = "blue")
 ```
 
-The solid line in the plot above represents the estimated effect of a predictor on the response (Outstate). It depicts the relationship between the predictor and the response after adjusting for the effects of all other variables in the model. The two dotted lines represent a 95% confidence interval. It can be observed that Room.Board, Expend and Grad.Rate each appear to have a very non-linear relationship with Outstate. per.alumni appears to have a non-linear relationship with Outstate but overall its pattern could arguably be generalized as a positive linear relationship with response. Terminal has a slightly non-linear relationship with the response with a slope that seems to converge at higher levels of Terminal.
+The solid lines in each of the graphs above represent the estimated effect of a predictor on the response (Outstate). It depicts the relationship between the predictor and the response after adjusting for the effects of all other variables in the model. The two dotted lines represent a 95% confidence interval.
+
+Some example of interpretations:
+
+- It can be observed that Expend and Grad.Rate each appear to have a very non-linear relationship with Outstate.
+- Conversely per.alumni appears to have a non-linear relationship with Outstate but overall its pattern could arguably be generalized as a positive linear relationship with response. 
+- Terminal has a slightly non-linear relationship with the response with a slope that seems to converge at higher levels of Terminal.
 
 #### 10 c)
 
@@ -407,7 +415,7 @@ cat("Standard Deviation of Outstate from dataset:", sd(test_college$Outstate), "
 
 GAM Test set Results
 
-- The Generalized Additive Model's test set MSE and RMSE is printed above. On average, the model's predictions are around 1,932.084 off from the actual out-of-state tuition. For comparison, the standard deviation of the test set's Outstate, 4,114.738, is printed. Since the RMSE is significantly smaller than the variance, it suggests that the model is capturing a significant proportion of the variance.
+- The Generalized Additive Model's test set MSE and RMSE is printed above. On average, the model's predictions are around 1,855.938 off from the actual out-of-state tuition. For comparison, the standard deviation of the test set's Outstate, 4,151.108, is printed. Since the RMSE is significantly smaller than the variance, it suggests that the model is capturing a significant proportion of the variance.
 
 #### 10 d)
 
@@ -417,4 +425,6 @@ For which variables, if any, is there evidence of a non-linear relationship with
 summary(gam_fit)
 ```
 
-- In the summary output, the smoothing term p-values tell us which variables have evidence of a non-linear relationship. A p-value smaller than the significance level (0.05) suggests that there is evidence of a non-linear relationship between that predictor and the response variable. All 5 smoothing terms have evidence for non-linear relationships, but some have stronger evidence than others. Room.Board, Expend, and Grad.Rate have the strongest evidence for having a non-linear relationship which aligns with the graphs observations in part b. In terms of non-linear relationship strength, perc.alumni is next and lastly Terminal has the least evidence for having  anon-linear relationship with the response.
+- In the summary output, the smoothing term p-values tell us which variables have evidence of a non-linear relationship. A p-value smaller than the significance level (0.05) suggests that there is evidence of a non-linear relationship between that predictor and the response variable. 
+- Most of the smoothing terms have evidence for non-linear relationships. Room.Board and Expend have very strong evidence for having a non-linear relationship with the response which aligns with the graphs observations in part b. Some terms have weaker evidence supporting the claim it has a non-linear relationship with Outstate. For example perc.alumni and Grad.Rate have p-values less than 0.05, but are larger than the p-values of Room.Board and Expend.
+- 5 of the terms do not have evidence for a non-linear relationship because their values are greater than 0.05. These terms are: Terminal, PhD, Personal, Top10perc, and Apps. 
