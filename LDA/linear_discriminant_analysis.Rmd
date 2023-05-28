@@ -178,6 +178,19 @@ B <- Tot-W
 LDA <- eigen(solve(W)%*%B)$vector
 ```
 
+Visualize the directions of the two linear discriminants.
+```{r}
+# LDA <- LDA/sqrt(rowSums(LDAˆ2))
+par(pty = "s")
+plot(t(LDA),xlim = c(-1, 1), ylim=c(-1, 1),
+     pch = 21, col =1, bg = c(3, 4), xlab = c("LD1"),
+     ylab = c("LD2"))
+arrows(0, 0, LDA[1, 1], LDA[2, 1], col = 3,
+       lwd = 2, length=.1)
+arrows(0, 0, LDA[1, 2], LDA[2, 2], col = 4,
+       lwd = 2, length=.1)
+```
+
   f. Project the training data onto the two linear discriminants and plot the projected data.
   
 ```{r}
