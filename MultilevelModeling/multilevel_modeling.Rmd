@@ -1,0 +1,766 @@
+---
+title: "Multi-level Modeling"
+author: "Tarek El-Hajjaoui"
+date: "2023-06-05"
+output: html_document
+---
+
+## Conceptual exercise (Section 8.13.1): Housing prices.
+
+Brown and Uyar (2004) describe “A Hierarchical Linear Model Approach for Assessing the Effects of House and Neighborhood Characteristics on Housing Prices”. Based on the title of their paper.
+
+a) give the observational units at Level One and Level Two
+
+- At Level One, the observational units are individual houses. Each house is treated as a separate unit of analysis, and the data collected for each house includes its specific characteristics and attributes. 
+
+- At Level Two, the observational units are neighborhoods. The houses within each neighborhood are grouped together, and the data collected for each neighborhood includes aggregated information about the houses within it. 
+
+b) list potential explanatory variables at both Level One and Level Two
+
+
+>  Level One (House characteristics):
+  
+  - size
+  - number of bedrooms and bathrooms
+  - square footage
+  - age
+  - condition
+  - architectural style
+  - presence of a pool or garage
+
+>  Level Two (Neighborhood characteristics):
+  
+  - average income level
+  - crime rate
+  - school quality
+  - property tax rates
+  - overall neighborhood condition
+
+## Guided exercise (Section 9.9.2): Teen alcohol use.
+
+Curran, Stice, and Chassin (1997) collected data on 82 adolescents at three time points starting at age 14 to assess factors that affect teen drinking behavior. Key variables in the data set alcohol.csv (accessed via Singer and Willett (2003)) are as follows:
+
+- id = numerical identifier for subject
+- age = 14, 15, or 16
+- coa = 1 if the teen is a child of an alcoholic parent; 0 otherwise
+- male = 1 if male; 0 if female
+- peer = a measure of peer alcohol use, taken when each subject was 14. This is the square root of the sum of two 6-point items about the proportion of friends who drink occasionally or regularly.
+- alcuse = the primary response. Four items—(a) drank beer or wine, (b) drank hard liquor, (c) 5 or more drinks in a row, and (d) got drunk—were each scored on an 8-point scale, from 0=“not at all” to 7=“every day”. Then alcuse is the square root of the sum of these four items.
+
+Primary research questions included: Do trajectories of alcohol use differ by parental alcoholism? Do trajectories of alcohol use differ by peer alcohol use?
+
+```{r,warning=FALSE,message=FALSE}
+options(warn = -1)
+library(dplyr)
+library(tidyverse)
+library(broom) # tidy()
+library(corrplot)
+library(lattice) # lattice plot
+library(ggplot2)
+library(patchwork)
+library(lme4) # lmer
+```
+
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/Datasets/alcohol.csv'
+df_alcohol <- read.csv(file_path, row.names = NULL, header = TRUE)
+df_alchol <- na.omit(df_alcohol) # drop na rows
+df_alcohol$X <- NULL
+```
+
+```{r}
+head(df_alcohol, 3)
+```
+
+```{r}
+# categorical_cols <- c('coa','male')
+# df_alcohol[categorical_cols] <- lapply(df_alcohol[categorical_cols], as.factor)
+str(df_alcohol)
+```
+
+### Section 9.9.2 Part a
+
+Identify Level One and Level Two predictors.
+
+Level One (within-subject predictors)
+
+- id
+- age
+- alcuse
+
+Level Two (between-subject predictors)
+
+- peer
+- coa
+- male
+
+### Section 9.9.2 Part b
+
+Perform a quick EDA. What can you say about the shape of alcuse, and the relationship between alcuse and coa, male, and peer? Appeal to plots and summary statistics in making your statements.
+
+#### EDA
+
+```{r}
+# ensure dataset contains no more na values
+colSums(is.na(df_alcohol))
+```
+
+- Removed any observations with null column(s).
+
+
+```{r}
+# count number of samples per id
+#hist(table(df_alchol$id), xlab='Number of measurements', main = '')
+# confirming if each observation has equal number of samples.
+id_counts <- table(df_alcohol$id)
+equal_counts <- all(id_counts == id_counts[1])
+equal_counts
+```
+
+- Each subject (id) has an equal number of observations in the dataset.
+
+Unconditional empirical distribution of alcuse
+```{r}
+hist(df_alcohol$alcuse, col="lightblue", main='',xlab='Alcuse')
+```
+
+- The histogram above shows how there is a lot of the subjects do not consume alcohol (alcuse = 0). The highest alcuse recorded is 4 despite the scale enabling up to 7, so no very frequent alcohol drinkers are in the dataset.
+
+```{r}
+# Summary statistics for alcuse
+summary(df_alcohol$alcuse)
+```
+From the summary statistics, we can see that the minimum value of alcuse is 0.00, indicating that some adolescents reported no alcohol use at all. The maximum value is 3.606 and 3rd quartile is 1.732, indicating that 25% of individuals reported alcohol use between 1.732 and 3.606. The median value (1.000) is about equal to the mean (0.922), indicating a potential bell-shaped distribution.
+
+<!-- Pairwise correlations of alcuse with: coa, male, & peer -->
+<!-- ```{r} -->
+<!-- X <- model.matrix(lm(alcuse~-1 + age + coa + male + peer, df_alchol)) -->
+<!-- corrplot(cor(X), method="circle") -->
+<!-- ``` -->
+
+Relationships between alcuse and coa & between alcuse and male
+```{r}
+par(mfrow = c(1, 2))
+# Relationship between alcuse and coa
+boxplot(alcuse ~ coa, data = df_alchol, xlab = "Child of Alcoholic Parent", ylab = "Alcohol Use (alcuse)")
+# Relationship between alcuse and male
+boxplot(alcuse ~ male, data = df_alchol, xlab = "Gender", ylab = "Alcohol Use (alcuse)")
+```
+
+**Relationship between alcuse and coa**
+
+- It can be observed that the box for being a child of an alcoholic parent (1) looks significantly different from not being a child of an alcoholic parent (0).
+- The median for coa = 0 is 0, but the median for coa = 1 is about 1. It should be noted that alcuse of 1 is very little amount of alcohol consumption relative to the scale (0 - 7).
+- Additionally, the box quartiles are more spread out for coa = 1 compared to coa = 0.
+
+**Relationship between alcuse and gender**
+
+- The boxplot on the right suggests there is almost no observable difference between alcohol use among male and female subjects.
+- The median alcohol use for both male (1) and female (0) is about 1.
+- The box quartiles are spread nearly amount for male and female. 
+
+Relationship between alcuse and peer
+```{r}
+# Scatter plot of alcuse against peer alcohol use with trend line
+plot(alcuse ~ peer, data = df_alchol, xlab = "Peer Alcohol Use", ylab = "Alcohol Use (alcuse)")
+abline(lm(alcuse ~ peer, data = df_alchol), col = "red")
+```
+
+**Relationship between alcuse and peer**
+
+- The red line above is the trendline of alcohol usage across different levels of peer alcohol use. It can be observed that there appears to be a positive relationship between peer alcohol usage and a subject's alcohol usage. In other words, as peer alcohol use increases can typically expect the subject's alcohol usage to increase as well.
+
+### Section 9.9.2 Part c
+
+Generate a plot as in Figure 9.4 with alcohol use over time for all 82 subjects. Comment.
+
+Trajectory (average) of alcuse over age.
+```{r,warning=FALSE,message=FALSE}
+options(warn = -1)
+age.mean <- df_alchol %>%
+  group_by(age) %>%
+  summarise(avg = mean(alcuse))
+
+ggplot(age.mean, aes(x=age, y=avg)) +
+  geom_point()+
+  geom_smooth(method = "loess", size = 1.5)+
+  xlab("Age") +
+  ylab("Alcohol Usage")
+```
+
+- It can be observed that there is a positive trajectory of alcohol usage as age increases as shown above. This plot was generated using averages, and so the next chart, lattice plot, will break down the trajectory per subject as does Figure 9.4.
+
+Lattice plot (similar to Figure 9.4)
+```{r}
+# lattice plot
+
+# Chart 1
+plot1 <- ggplot(df_alcohol[df_alcohol$id %in% 1:21, ], aes(x = age, y = alcuse)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~id, ncol = 7) +
+  labs(x = "Age", y = "Alcohol Use", title = "Alcohol Use Over Time") +
+  scale_x_continuous(breaks = seq(min(df_alcohol$age), max(df_alcohol$age), by = 2))
+
+# Chart 2
+plot2 <- ggplot(df_alcohol[df_alcohol$id %in% 22:42, ], aes(x = age, y = alcuse)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~id, ncol = 7) +
+  labs(x = "Age", y = "Alcohol Use", title = "Alcohol Use Over Time") +
+  scale_x_continuous(breaks = seq(min(df_alcohol$age), max(df_alcohol$age), by = 2))
+
+# Chart 3
+plot3 <- ggplot(df_alcohol[df_alcohol$id %in% 43:63, ], aes(x = age, y = alcuse)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~id, ncol = 7) +
+  labs(x = "Age", y = "Alcohol Use", title = "Alcohol Use Over Time") +
+  scale_x_continuous(breaks = seq(min(df_alcohol$age), max(df_alcohol$age), by = 2))
+
+# Chart 4
+plot4 <- ggplot(df_alcohol[df_alcohol$id %in% 64:82, ], aes(x = age, y = alcuse)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(~id, ncol = 7) +
+  labs(x = "Age", y = "Alcohol Use", title = "Alcohol Use Over Time") +
+  scale_x_continuous(breaks = seq(min(df_alcohol$age), max(df_alcohol$age), by = 2))
+
+# Combine the charts into a single plot
+combined_plot <- plot1 + plot2 + plot3 + plot4
+
+combined_plot
+```
+
+The lattice plots visualize the alcohol use trajectories of each subject. There is a lot of variation of among subjects so cannot simply generalize the trends across all subjects. Here are some patterns noticed:
+
+- No alcohol use whatsoever across age. For example, subjects 85, 8, 43, 71, etc.
+
+- Increase in alcohol use overtime. For example, subjects 3, 36, 56, 77, etc.
+
+- Increase as age increase, followed by decrease. For example, subjects 4, 31, 52, 79, etc.
+
+There are more patterns that can be described but the 3 described above are most commonly observed.
+
+### Section 9.9.2 Part d
+
+Generate three spaghetti plots with loess fits similar to Figure 9.7 (one for coa, one for male, and one after creating a binary variable from peer). Comment on what you can conclude from each plot.
+
+
+```{r, warning=FALSE,message=FALSE}
+options(warn = -1)
+# Spaghetti plot with loess fit for coa
+coa_plot <- ggplot(df_alcohol, aes(x = age, y = alcuse)) +
+  geom_line(aes(group=id),color="dark grey") +
+  facet_grid(.~coa) + 
+  geom_smooth(aes(group=1),color="black",size=1) +
+  labs(x = "Age", y = "Alcohol Use", title = "Alcohol Use by Parental Alcoholism by coa")
+coa_plot
+```
+
+- The trajectory slope of alcohol usage across age appear similar between coa=0 subjects and coa=1 subjects, except subjects with coa=1 have a higher baseline (intercept) alcohol usage.
+
+```{r}
+# Spaghetti plot with loess fit for male
+male_plot <- ggplot(df_alcohol, aes(x = age, y = alcuse)) +
+  geom_line(aes(group=id),color="dark grey") +
+  facet_grid(.~male) + 
+  geom_smooth(aes(group=1),color="black",size=1) +
+  labs(x = "Age", y = "Alcohol Use", title = "Alcohol Use by Parental Alcoholism by gender")
+male_plot
+```
+
+- The trajectory of alcohol usage across gender show different trends. Female subjects have an increase alcohol usage initially as age increases but then it appears to go down. In contrast, male subjects appear to have increase in alcohol usage throughout as age increases.
+
+```{r}
+ # Create binary variable from peer (e.g., above or below median)
+df_alcohol$peer_binary <- ifelse(df_alcohol$peer > median(df_alcohol$peer), "Above Median Peer Influence", "Below Median Peer Influence")
+
+ # Spaghetti plot with loess fit for binary variable from peer
+peer_plot <-ggplot(df_alcohol, aes(x = age, y = alcuse)) +
+  geom_line(aes(group=id),color="dark grey") +
+  facet_grid(.~peer_binary) + 
+  geom_smooth(aes(group=1),color="black",size=1) +
+  labs(x = "Age", y = "Alcohol Use", title = "Alcohol Use by Parental Alcoholism by peer")
+ 
+peer_plot
+```
+
+- The trajectory of alcohol usage across gender show different trends. Subjects with above median peer influence have an increase alcohol usage initially as age increases, but then the trajectory slope appears to plateau. In contrast, subjects with below median peer influence appear to have increase in alcohol usage throughout as age increases.
+
+### Section 9.9.2 Part e
+
+Fit a linear trend to the data from each of the 82 subjects using age as the time variable. Generate histograms as in Figure 9.10 showing the results of these 82 linear regression lines, and generate pairs of boxplots as in Figure 9.12 for coa and male. No commentary necessary. [Hint: to produce Figure 9.12, you will need a data frame with one observation per subject.]
+
+Fit a linear trend to the data from each of the 82 subjects using age as the time variable.
+```{r}
+# fit linear trend for each of the 82 subject
+regressions <- df_alcohol %>% 
+  group_by(id) %>% 
+  do(fit = lm(alcuse ~ age, data=.))
+
+head(regressions, 3)
+```
+
+Generate histograms as in Figure 9.10 showing the results of these 82 linear regression lines.
+```{r, warning=FALSE,message=FALSE}
+options(warn = -1)
+
+# extract intercepts
+intercepts <- regressions %>%
+  summarise(intercept = coef(fit)[[1]])
+
+# extract slopes
+slopes <- regressions %>%
+  summarise(slope = coef(fit)[[2]])
+
+# extract R^2
+r_squared <- regressions %>%
+  summarise(r_squared = summary(fit)$r.squared)
+
+# Histogram for intercepts
+intercept_hist <- ggplot(intercepts, aes(x = intercept)) +
+  geom_histogram(binwidth = 2, color = "black", fill = "white") +
+  labs(x = "Intercept", y = "Frequency") +
+  ggtitle("Histogram of 82 Intercepts")
+
+# Histogram for slopes
+slope_hist <- ggplot(slopes, aes(x = slope)) +
+  geom_histogram(binwidth = 0.2, color = "black", fill = "white") +
+  labs(x = "Slope", y = "Frequency") +
+  ggtitle("Histogram of Slope")
+
+# Histogram for R-squared values
+rsquared_hist <- ggplot(r_squared, aes(x = r_squared)) +
+  geom_histogram(binwidth = 0.05, color = "black", fill = "white") +
+  labs(x = "R-squared", y = "Frequency") +
+  ggtitle("Histogram of R-squared")
+
+# Arrange the histograms using patchwork
+combined_plot <- intercept_hist + slope_hist + rsquared_hist +
+  plot_layout(ncol = 2, nrow=2)
+
+# Display the combined plot
+combined_plot
+```
+
+Generate pairs of boxplots as in Figure 9.12 for coa and male. *Note - this is the same boxplot used in Part B EDA portion.*
+```{r}
+par(mfrow = c(1, 2))
+# Relationship between alcuse and coa
+boxplot(alcuse ~ coa, data = df_alchol, xlab = "Child of Alcoholic Parent", ylab = "Alcohol Use (alcuse)")
+# Relationship between alcuse and male
+boxplot(alcuse ~ male, data = df_alchol, xlab = "Gender", ylab = "Alcohol Use (alcuse)")
+```
+
+### Section 9.9.2 Part f
+
+Repeat (e) using centered age (age14 = age - 14) as the time variable. Also generate a pair of scatterplots as in Figure 9.14 for peer alcohol use. Comment on trends you observe in these plots. [Hint: after forming age14, append it to your current data frame.]
+
+```{r}
+# create centered age
+df_alcohol$age14 <- df_alcohol$age - 14
+
+# fit linear trend for each of the 82 subject using centered age
+age14_regressions <- df_alcohol %>% 
+  group_by(id) %>% 
+  do(fit = lm(alcuse ~ age14, data=.))
+
+head(age14_regressions, 3)
+```
+
+Using age14, generate histograms as in Figure 9.10 showing the results of these 82 linear regression lines.
+```{r, warning=FALSE,message=FALSE}
+options(warn = -1)
+
+# extract intercepts
+age14_intercepts <- age14_regressions %>%
+  select(id, fit) %>%
+  left_join(df_alcohol %>% select(id, peer), by = "id") %>%
+  summarise(peer = peer, intercept = coef(fit)[[1]])
+
+# extract slopes
+age14_slopes <- age14_regressions %>%
+  select(id, fit) %>%
+  left_join(df_alcohol %>% select(id, peer), by = "id") %>%
+  summarise(peer = peer, slope = coef(fit)[[2]])
+
+# extract R^2
+age14_r_squared <- age14_regressions %>%
+  summarise(r_squared = summary(fit)$r.squared)
+
+# Histogram for intercepts
+age14_intercept_hist <- ggplot(age14_intercepts, aes(x = intercept)) +
+  geom_histogram(binwidth = 2, color = "black", fill = "white") +
+  labs(x = "Intercept", y = "Frequency") +
+  ggtitle("(age14) Histogram of 82 Intercepts")
+
+# Histogram for slopes
+age14_slope_hist <- ggplot(age14_slopes, aes(x = slope)) +
+  geom_histogram(binwidth = 0.2, color = "black", fill = "white") +
+  labs(x = "Slope", y = "Frequency") +
+  ggtitle("(age14) Histogram of Slope")
+
+# Histogram for R-squared values
+age14_rsquared_hist <- ggplot(age14_r_squared, aes(x = r_squared)) +
+  geom_histogram(binwidth = 0.05, color = "black", fill = "white") +
+  labs(x = "R-squared", y = "Frequency") +
+  ggtitle("(age14) Histogram of R-squared")
+
+# Arrange the histograms using patchwork
+age14_combined_plot <- age14_intercept_hist + age14_slope_hist + age14_rsquared_hist +
+  plot_layout(ncol = 2, nrow=2)
+
+# Display the combined plot
+age14_combined_plot
+```
+
+Generate a pair of scatterplots as in Figure 9.14 for peer alcohol use.
+
+```{r}
+# Scatterplot of peer vs intercept
+int.scat <- ggplot(age14_intercepts, aes(x = peer, y = intercept)) +
+  geom_point() +
+  labs(x = "Peer", y = "Intercept") +
+  ggtitle("Scatterplot of Peer vs Intercept")
+
+rate.scat <- ggplot(age14_slopes, aes(x = peer, y = slope)) +
+  geom_point() +
+  labs(x = "Peer", y = "Slope") +
+  ggtitle("Scatterplot of Peer vs Slope")
+
+int.scat + rate.scat
+```
+
+### Section 9.9.2 Part g
+
+Discuss similarities and differences between (e) and (f). Why does using age14 as the time variable make more sense in this example?
+
+Similarities
+
+- The slopes and R^2 values look identical. The slopes did not change when using age14 instead of age as the predictor variable because the transformation of centering the age variable does not affect the relationship between the predictor and the response variable. By subtracting 14 (age14 = age - 14), the entire age variable is simply being shifted by a constant value. This transformation does not alter the linear relationship between age (or age14) and the response variable (alcuse) because the change in the predictor variable is proportional to the change in the response variable. The R-squared values staying the same after using age14 as the predictor variable suggests that the variability in the response variable (alcuse) explained by the linear regression model is not affected by the shift in the predictor variable. This means the relationship between the predictor and the response variable remained intact and so the model is still able to explain the same amount of variability in the response variable.
+
+Differences
+
+- The intercept values are different in the models using age vs the models using age14. Centering the predictor variable, age to age14, effectively adjusts the intercept of the linear regression model.
+
+Why does using age14 as the time variable make more sense in this example?
+
+- In the original age variable, the intercept represents the predicted value of the response variable when the age is equal to 0. However, an age of 0 does not have any practical or meaningful interpretation in the context of the data. By centering the age variable, a more meaningful reference point, age of 14 - minimum age, is used. The intercept in the age14 model represents the predicted value of the response variable at that specific reference age.
+
+### Section 9.9.2 Part h
+
+(Model A) Run an unconditional means model. Report and interpret the intraclass correlation coefficient.
+
+```{r}
+icc <- function(between_var, across_var) {
+  return  (between_var / (between_var + across_var))
+}
+
+# fit unconditional means model (intercept model)
+# to the left of (1 | id) are the fixed effects, 1
+# inside (1 | id) the left part are the random effects given a variable (id)
+model_a <- lmer(alcuse ~ 1 + (1 | id), data = df_alcohol)
+summary(model_a)
+```
+
+```{r}
+model_a_between_var = 0.5731
+model_a_across_var = 0.5617
+
+icc(model_a_between_var, model_a_across_var)
+```
+
+\[ alcuse_{ij} = \alpha_0 + u_i + e_{ij}, \quad e_{ij}\sim N(0,\sigma^2), \quad u_{i}\sim N(0,\sigma^2_u). \]
+
+<!-- Level 1 Model: -->
+
+<!-- \[ \beta_{0j} = \alpha_{00} + \mu_{0j} \]   -->
+
+<!-- Level 2 Model: -->
+
+<!-- \[ alcuse_{ij} = \beta_{0j}  + e_{ij}, \quad e_{ij}\sim N(0,\sigma^2) \]   -->
+
+<!-- Composite Model: -->
+
+<!-- \[ alcuse_{ij} = \alpha_{00} + \mu_{0j} + e_{ij} \]  -->
+
+<!-- Grand Intercept -->
+<!-- $\alpha_0 = \gamma_{00}$ -->
+
+**Interpretation:** 
+
+- $\hat{\alpha_0}$ =  0.9220 is the overall mean across all subjects and all measurements.
+- $\hat{\sigma^{2}_\mu}$ = 0.5731 is the variance between subjects. This represents the deviation of each person's mean from the fixed effect mean.
+- $\hat{\sigma^{2}}$ = 0.5617 is the variance across different measurements for each subject. The deviance of each individual across their own mean.
+
+### Section 9.9.2 Part i
+
+(Model B) Run an unconditional growth model with age14 as the time variable at Level One. Report and interpret estimated fixed effects, using proper notation. Also report and interpret a pseudo R-squared value.
+
+```{r}
+# fit unconditional growth model
+# random slope/intercepts model
+model_b <- lmer(alcuse ~ age14 + (age14 | id), data = df_alcohol)
+
+summary(model_b)
+
+# extract fixed effects
+# fixed_effects <- fixef(model_b)
+# 
+# cat("Fixed effects:",fixed_effects,"\n")
+
+# extract pseudo R-squared
+pseudo_r_squared <- 1 - (logLik(model_b) / logLik(model_a))
+
+cat("\nPseudo R^2:",pseudo_r_squared)
+```
+
+In Model B, the fixed effects represent the estimated coefficients associated with the age14 variable. They indicate the average change in alcuse per unit increase in age14.
+
+Level 1 Model:
+
+\[ alcuse_{ij} = \alpha_{0j} + \beta_{i}age14_{ij} + e_{ij}, \quad e_{ij}\sim N(0,\sigma^2), \quad u_{i}\sim N(0,\sigma^2_u). \]
+
+Level 2 Model:
+
+\[ \alpha_{j} = \alpha_{0} + \mu_{i} \]
+
+\[ \beta_{j} = \beta_{0} + v_{i} \]
+
+Composite Model:
+
+\[ alcuse_{ij} = \alpha_0 + \beta_0 age14_{ij} + u_i + v_i age14_{ij} +e_{ij}, \quad e_{ij}\sim N(0,\sigma^2), \quad  \left[ \begin{array}{c}
+            u_{i} \\ v_{i}
+          \end{array}  \right] \sim N \left( \left[
+          \begin{array}{c}
+            0 \\ 0
+          \end{array} \right], \left[
+          \begin{array}{cc}
+            \sigma_{u}^{2} & \\
+            \rho\sigma_{u}\sigma_{v} & \sigma_{v}^{2}
+          \end{array} \right] \right). \]
+
+**Interpretation:** 
+
+- $\hat{\alpha_0}$ = 0.65130 is the overall mean across all subjects at age zero (baseline).
+- $\hat{\beta_0}$ =  0.27065 is the fixed effect of time (age) on alcohol use. Every year a subject becomes older, on average increase alcohol usage by 0.27. 
+- $\hat{\sigma^2_u}$ = 0.6355 is the variance between subjects **at the baseline** (when age=0)
+- $\hat{\sigma^2_v}$ = 0.1552 is the variance in the trajectory of alcohol use throughout age between subjects
+- $\hat{\sigma^2}$ = 0.3373 is the variance across different measurements  for each subject
+
+pseudo $R^2$
+
+- pseudo R-squared represents the proportion of variance explained by the model and ranges from 0 to 1. Only 0.044 of the variance is being explained by the predictor which indicates age14 is not explaining much of the variation in alcohol usage across subjects.
+
+### Section 9.9.2 Part j
+
+(Model C) Build upon the unconditional growth model by adding the effects of having an alcoholic parent and peer alcohol use in both Level Two equations. Report and interpret all estimated fixed effects, using proper notation.
+
+```{r}
+# Fit extended growth model
+model_c <- lmer(alcuse ~ age14 + coa + peer + (age14 | id), data = df_alcohol)
+summary(model_c)
+```
+\[ Y_{ij} = \alpha_0 + \beta_0 age14_{ij} + \beta_1 coa_{ij} + \beta_2 peer_{ij} + u_i + v_i age14_{ij} +e_{ij}, \quad e_{ij}\sim N(0,\sigma^2), \quad  \left[ \begin{array}{c}
+            u_{i} \\ v_{i}
+          \end{array}  \right] \sim N \left( \left[
+          \begin{array}{c}
+            0 \\ 0
+          \end{array} \right], \left[
+          \begin{array}{cc}
+            \sigma_{u}^{2} & \\
+            \rho\sigma_{u}\sigma_{v} & \sigma_{v}^{2}
+          \end{array} \right] \right). \]
+
+
+**Interpretation:** 
+
+- $\hat \alpha_0$ = -0.22635 is the overall mean across all subjects at age zero
+- $\hat \beta_0$ =  0.27065 is the fixed effect of time (age) on alcohol use
+- $\hat beta_1$ =  0.57120 is the fixed effect of coa on alcohol use
+- $\hat beta_2$ =  0.60922 is the fixed effect of peer on alcohol use
+
+### Section 9.9.2 Part k
+
+(Model D) Remove the child of an alcoholic indicator variable as a predictor of slope in Model C (it will still be a predictor of intercept). Write out Model D as both a two-level and a composite model using proper notation (including error distributions); how many parameters (fixed effects and variance components) must be estimated? Compare Model D to Model C using an appropriate method and state a conclusion.
+
+```{r}
+model_d <- lmer(alcuse ~ age14 + coa + age14:coa + (age14 | id), data = df_alcohol)
+summary(model_d)
+```
+
+Two-Level Model (Model D):
+
+Level 1 (within-individual model):
+
+- $alcuse_{ij} = \beta_{0j} + \beta_{1j}age14_{ij} + e_{ij}$
+
+Level 2 (between-individual model):
+
+- $\beta_{0j} = \gamma_{00} + \gamma_{01} * coa_j + u_{0j}$
+- $\beta_{1j} = \gamma_{10} + u_{1j}$
+
+Error distributions:
+
+- $e_{ij} ~ N(0, \sigma_e^2)$ (Level 1 residual)
+- $u_{0j} ~ N(0, \sigma_0^2)$ (Intercept random effect)
+- $u_{1j} ~ N(0, \sigma_1^2)$ (Slope random effect)
+
+Composite Model (Model D):
+
+- $alcuse_{ij} = \gamma_{00} + \gamma_{01} * coa_j + \gamma_{02} * peer_j + \gamma_{10} * age14_{ij} +\gamma_{12} * peer_j * age14_{ij} + \mu_{0j} + \mu_{1j} * age14_{ij} + e_{ij}$
+
+Error distribution:
+
+- $e_{ij} ~ N(0, \sigma_e^2)$
+
+Fixed Effects:
+
+- β0: Intercept (overall intercept)
+- β1: Slope coefficient for age14
+- γ: Fixed effect coefficient for coa (predictor of intercept)
+- u_0j: Random intercept for each individual j
+- u_1j: Random slope for each individual j
+
+Variance Components:
+
+- σ_e^2: Level 1 residual variance
+- σ_0^2: Variance of random intercepts
+- σ_1^2: Variance of random slopes
+
+**How many parameters (fixed effects and variance components) must be estimated?**
+
+- There are 7 parameters that need to be estimated: 5 fixed effects, 2 variance components.
+
+**Compare models**
+
+Comparing Model D to Model C can be done with a likelihood ratio test (LRT), which compares the log-likelihood of the two models. 
+
+```{r}
+anova(model_c, model_d, test = "Chisq")
+```
+
+The summary above provided no p-values. If the p-value is less than the significance level, 0.05, would have evidence to conclude that Model C (with more predictors) provides a significantly better fit to the data than Model D.
+
+## Open-ended exercise (Section 9.9.3.2):Completion rates at U.S. colleges.
+
+Education researchers wonder which factors most affect the completion rates at U.S. colleges. Using the IPEDS database containing data from 1310 institutions over the years 2002-2009 (National Center for Education Statistics 2018), the following variables were assembled in colleges.csv:
+
+- id = unique identification number for each college or university
+
+Response:
+
+- rate = completion rate (number of degrees awarded per 100 students enrolled)
+
+Level 1 predictors:
+
+- year
+- instpct = percentage of students who receive an institutional grant
+- instamt = typical amount of an institutional grant among recipients (in $1000s)
+
+Level 2 predictors:
+
+- faculty = mean number of full-time faculty per 100 students during 2002-2009
+- tuition = mean yearly tuition during 2002-2009 (in $1000s)
+
+Perform exploratory analyses and run multilevel models to determine significant predictors of baseline (2002) completion rates and changes in completion rates between 2002 and 2009. In particular, is the percentage of grant recipients or the average institutional grant awarded related to completion rate?
+
+### 9.9.3.2 EDA
+
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/Datasets/colleges.csv'
+df_college <- read.csv(file_path, row.names = NULL, header = TRUE)
+str(df_college) # view datatypes
+colSums(is.na(df_alcohol)) # check for nulls
+df_college <- na.omit(df_college)
+# drop column X from the dataframe
+df_college$X <- NULL
+head(df_college)
+```
+
+```{r}
+# Summary statistics
+summary(df_college)
+```
+
+```{r}
+# correlation between some features
+cor(df_college[, c("rate", "instpct", "instamt", "faculty", "tuition")])
+```
+
+- Rate (completion rate) is weakly correlated with instpct and instamt, and very weakly correlated with faculty and tuition. 
+
+```{r}
+# Spaghetti plot: Completion Rate vs. Percentage of Grant Recipients
+ggplot(df_college, aes(x = instpct, y = rate, group = id)) +
+  geom_line() +
+  geom_smooth(aes(group=1),color="dark grey") +
+  xlab("Percentage of Grant Recipients") +
+  ylab("Completion Rate")
+
+# Spaghetti plot: Completion Rate vs. Average Institutional Grant
+ggplot(df_college, aes(x = instamt, y = rate, group = id)) +
+  geom_line() +
+  geom_smooth(aes(group=1),color="dark grey") +
+  xlab("Average Institutional Grant") +
+  ylab("Completion Rate")
+```
+
+### 9.9.3.2 Baseline Model
+
+```{r}
+# fit a multilevel model for baseline completion rates (2002)
+model_baseline <- lmer(rate ~ instpct + instamt + faculty + tuition + (1|id), data = df_college)
+summary(model_baseline)
+# p-values
+coef_table_baseline <- summary(model_baseline)$coefficients
+p_values_baseline <- 2 * pt(abs(coef_table_baseline[, "t value"]), df = df.residual(model_baseline), lower.tail = FALSE)
+p_values_baseline
+```
+
+This model predicts the completion rate (rate) as a function of the percentage of grant recipients (instpct), the average institutional grant awarded (instamt), the mean number of faculty per 100 students during 2002-2009 (faculty), and the mean yearly tuition during 2002-2009 (tuition), allowing the baseline completion rate to vary across institutions, indicated by (1|id).
+
+**Interpretation:** 
+
+- $\hat \alpha_0$ =  2.247e+01 is the overall mean across all subjects and all measurements
+- $\hat \beta_0$ =  2.004e-02 is the fixed effect of instpct on rate; as the percentage of grant recipients increases by 1 unit, the completion rate tends to increase by 2.004e-02.
+- $\hat \beta_1$ =  1.543e-01 is the fixed effect of instamt on rate; as the amount of an institutional grant among recipients increases by 1 unit, the completion rate tends to increase by 1.543e-01.
+- $\hat \beta_2$ =  1.255e-01 is the fixed effect of faculty on rate
+- $\hat \beta_3$ =  -1.858e-03 is the fixed effect of tuition on rate
+- $\hat \sigma^2$ = 10.81 is the variance across different measurements for each subject
+
+The p-values for instpct and instamt are statistically signifigant because their p-values are nearly 0 which is well less than the signifigance level. The results above suggest there are positive relationships between instpct and rate & instamt and rate. **The percentage of grant recipients or the average institutional grant awarded has a significant relationship with the completion rate and the changes in completion rates over time**.
+
+### 9.9.3.2 Model (2002)
+
+To examine changes in completion rates between 2002 and 2009, need to add year (centered at 2002) as a Level 1 predictor. This allows to model both the intercept (baseline completion rate) and the slope (rate of change in completion rate) as varying across institutions:
+
+```{r}
+# fit a multilevel model for changes in completion rates between 2002 and 2009
+# random intercept for id variable
+
+# center year at 2002
+df_college$year <- df_college$year - 2002
+
+# fit the random intercept and random slope model
+model_change <- lmer(rate ~ year + instpct + instamt + faculty + tuition + (1 + year|id), data = df_college)
+summary(model_change)
+
+# p-values
+coef_table_changes <- summary(model_change)$coefficients
+p_values_changes <- 2 * pt(abs(coef_table_changes[, "t value"]), df = df.residual(model_change), lower.tail = FALSE)
+p_values_changes
+```
+
+**Interpretation:** 
+
+- $\hat \alpha_0$ =  2.230e+01 is the overall mean across all subjects and all measurements
+- $\hat \beta_0$ =  7.569e-02  is the fixed effect of year on rate; as year increases by 1 unit, the completion rate tends to increase by 7.569e-02.
+- $\hat \beta_1$ =  1.979e-02  is the fixed effect of instpct on rate; as the percentage of grant recipients increases by 1 unit, the completion rate tends to increase by 1.979e-02.
+- $\hat \beta_2$ =  1.157e-01 is the fixed effect of instamt on rate; as the amount of an institutional grant among recipients increases by 1 unit, the completion rate tends to increase by 1.157e-01.
+- $\hat \beta_3$ =  1.478e-01 is the fixed effect of faculty on rate
+- $\hat \beta_4$ =  1.209e-03 is the fixed effect of tuition on rate
+- $\hat \sigma^2$ = 10.81 is the variance across different measurements for each subject
+
+The p-values for instpct and instamt are statistically signifigant because their p-values are nearly 0 which is well less than the signifigance level. The results above suggest there are positive relationships between instpct and rate & instamt and rate. **The percentage of grant recipients or the average institutional grant awarded has a significant relationship with the completion rate and the changes in completion rates over time**.
