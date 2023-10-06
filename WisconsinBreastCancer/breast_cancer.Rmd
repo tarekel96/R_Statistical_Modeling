@@ -1,0 +1,380 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+```{r}
+library(caret)
+library(car)
+library(dplyr)
+library(corrplot) # corrplot()
+library(ggplot2)
+library(GGally)
+library(corrplot)
+library(pwr)
+```
+
+```{r}
+file_path = '/Users/Tarek/Documents/UCI_MDS_Coding/Stats211P/R_Statistical_Modeling/Datasets/BreastCancer.csv'
+BreastCancer <- read.csv(file_path, row.names = NULL, header = TRUE)
+BreastCancer$X = NULL
+```
+
+## EDA
+
+```{r}
+# head
+head(BreastCancer, 3)
+# view dimensions 569 x 32
+dim(BreastCancer)
+# view counts of IDs
+all(table(BreastCancer$id) == 1)
+# remove ID
+BreastCancer$id = NULL
+# checking for missing values
+colSums(is.na(BreastCancer))
+BreastCancer$diagnosis <- as.factor(BreastCancer$diagnosis)
+```
+
+## Diagnosis Counts
+```{r}
+# count the number of benign and malignant samples
+count <- table(BreastCancer$diagnosis)
+
+# bar graph
+barplot(count, main = "Number of Benign and Malignant Samples", 
+        xlab = "Diagnosis", ylab = "Count", col = c("blue", "red"),
+        legend.text = levels(BreastCancer$diagnosis), ylim = c(0, max(count) + 10))
+
+text(x = 1:length(count), y = count + 1, label = count, pos = 1)
+```
+
+
+## Removing highly correlated features
+```{r}
+correlation <- cor(BreastCancer[, 2:dim(BreastCancer)[2]])
+features <- BreastCancer %>% select(-findCorrelation(correlation, cutoff = 0.9))
+dim(features)
+corrplot(cor(features), method = "circle", order = "FPC", type = "upper", tl.col = "black")
+```
+
+### Separating Population into M and B.
+```{r}
+column_names <- c("diagnosis", colnames(features))
+df_2 <- BreastCancer[, column_names]
+M <- subset(df_2, diagnosis == "M")
+B <- subset(df_2, diagnosis == "B")
+# M$diagnosis = NULL; B$diagnosis = NULL
+hotelling_t2_test <- function(x, y) {
+  n1 <- nrow(x)
+  n2 <- nrow(y)
+  p <- ncol(x)
+  
+  # Compute sample means
+  mean_x <- colMeans(x)
+  mean_y <- colMeans(y)
+  
+  # Compute sample covariance matrices
+  cov_x <- cov(x)
+  cov_y <- cov(y)
+  
+  # Compute pooled covariance matrix with unequal sample sizes
+  sp <- ((n1 - 1) * cov_x + (n2 - 1) * cov_y) / (n1 + n2 - 2)
+  
+  # Compute test statistic
+  t2 <- t(mean_x - mean_y) %*% solve(sp) %*% (mean_x - mean_y) * (n1 * n2) / (n1 + n2)
+  
+  # Compute critical value for the test statistic
+  alpha <- 0.05  # Significance level
+  df1 <- p  # Degrees of freedom 1
+  df2 <- (n1 + n2 - p - 1) / ((1 / n1) + (1 / n2))  # Degrees of freedom 2
+  crit_val <- qf(1 - alpha, df1, df2)
+  
+  # Compute p-value
+  p_value <- 1 - pf(t2, df1, df2)
+  
+  # Create result object
+  result <- list()
+  result$test_statistic <- t2
+  result$critical_value <- crit_val
+  result$p_value <- p_value
+  
+  return(result)
+}
+
+# Specify the features for Hotelling's T-squared test
+hotelling_features <- c('smoothness_mean', 'symmetry_mean', 'fractal_dimension_worst')
+
+# Perform Hotelling's T-squared test
+result <- hotelling_t2_test(M[, hotelling_features], B[, hotelling_features])
+result
+```
+
+## Hotelling T2 Test
+
+```{r}
+M$diagnosis = NULL; B$diagnosis = NULL
+Hotelling.T2.2sample=function(X, Y) {
+  n = dim(X)[1]; m=dim(Y)[1]; p=dim(X)[2]
+  if(p!= dim(Y)[2])
+    return ("Error: the dimensions of X and Y are not the same")
+  
+  X.bar=colMeans(X); Y.bar=colMeans(Y)
+  X.S=cov(X); Y.S=cov(Y)
+  pooled.S=((n-1)*X.S+(m-1)*Y.S)/(m+n-2)
+  T2=t(X.bar-Y.bar)%*%solve((1/n+1/m)*pooled.S)%*%(X.bar-Y.bar)
+  p.value=1-pf(T2/((n+m-2)*p/(n+m-1-p)),p,n+m-1-p)
+  return (list(X.bar=X.bar, Y.bar=Y.bar, T2=T2, p.value=p.value))
+}
+# dual function Hotelling.T2
+Hotelling.T2=function(X, Y=NULL, mu0=NULL) {
+  if(is.null(Y) && is.null(mu0))
+    return("Error: mu0 is not specified")
+  if(!is.null(X) && !is.null(mu0))
+    obj=Hotelling.T2.1sample(X, mu0)
+  if(!is.null(X) && !is.null(Y))
+    obj=Hotelling.T2.2sample(X,Y)
+  return (obj)
+}
+```
+
+
+### Testing Assumptions of Hotelling T2 Test
+
+#### Normality Assumption
+
+```{r}
+# QQ plots
+par(mfrow = c(1, 3))
+qqnorm(BreastCancer[,'smoothness_mean'], main = paste("QQ Plot of smoothness_mean"))
+qqline(BreastCancer[,'smoothness_mean'])
+qqnorm(BreastCancer[,'symmetry_mean'], main = paste("QQ Plot of symmetry_mean"))
+qqline(BreastCancer[,'symmetry_mean'])
+qqnorm(BreastCancer[,'fractal_dimension_worst'], main = paste("QQ Plot of fractal_dimension_worst"))
+qqline(BreastCancer[,'fractal_dimension_worst'])
+  
+colnames(B)
+#hotelling_features <- c('smoothness_mean','symmetry_mean','smoothness_worst')
+hotelling_features <- c('smoothness_mean','symmetry_mean','fractal_dimension_worst')
+# 7, 13, 14, 21 - almost normally distributed
+scatterplotMatrix(df_2[, hotelling_features])
+```
+
+```{r}
+scatterplotMatrix(B[, hotelling_features], main = "Scatter Plot Matrix - Benign Samples")
+scatterplotMatrix(M[, hotelling_features], main = "Scatter Plot Matrix - Malignant Samples", col="red")
+```
+
+#### Homestaticty
+```{r}
+library(car)
+B <- subset(df_2, diagnosis == "B")[,hotelling_features]
+M <- subset(df_2, diagnosis == "M")[,hotelling_features]
+groupB <- as.matrix(B)
+groupM <- as.matrix(M)
+bartlett.test(list(groupB, groupM))
+
+par(mfrow = c(1, 3))
+# boxplots
+boxplot(smoothness_mean ~ diagnosis, data = df_2, xlab = "diagnosis", col = c("blue", "red"))
+boxplot(symmetry_mean ~ diagnosis, data = df_2, xlab = "diagnosis", col = c("blue", "red"))
+boxplot(fractal_dimension_worst ~ diagnosis, data = df_2, xlab = "diagnosis", col = c("blue", "red"))
+```
+
+### Performing Hotelling T2 Test
+
+```{r}
+Hotelling.T2.2sample(M[,hotelling_features], B[,hotelling_features])
+```
+
+## Scatterplot Matrix
+```{r}
+# create the scatterplot matrix
+pairs(BreastCancer[, hotelling_features], col = c("red", "blue")[BreastCancer$diagnosis])
+```
+## Clustering
+
+```{r}
+par(mfrow = c(1, 2))
+k<-2
+set.seed(1)
+kmeans_result <- kmeans(df_2[, 2:dim(df_2)[2]], centers = k, nstart = 25)
+# Extract the cluster assignments
+cluster_assignments <- kmeans_result$cluster
+
+accuracy <- sum(cluster_assignments == ifelse(df_2$diagnosis == "B", 1, 2)) / nrow(df_2)
+print(paste("Accuracy:", accuracy))
+
+# Plot the results
+
+# smoothness_mean and symmetry_mean
+par(mfrow = c(1, 2))
+# Scatterplot with k-means clustering
+plot(df_2[, "smoothness_mean"], df_2[, "symmetry_mean"], col = ifelse(cluster_assignments == 1, "blue", "red"), pch = 16, 
+     main = "K-means Clustering", xlab = "smoothness_mean", ylab = "symmetry_mean")
+legend("topleft", legend = c("Cluster 1", "Cluster 2"), col = c("blue", "red"), pch = 16)
+# Scatterplot with diagnosis coloring
+plot(df_2[, "smoothness_mean"], df_2[, "symmetry_mean"], col = ifelse(df_2$diagnosis == "B", "blue", "red"), pch = 16, 
+     main = "Diagnosis Scatterplot", xlab = "smoothness_mean", ylab = "symmetry_mean")
+legend("topleft", legend = c("Benign", "Malignant"), col = c("blue", "red"), pch = 16)
+
+# smoothness and fractural
+par(mfrow = c(1, 2))
+plot(df_2[, "smoothness_mean"], df_2[, "fractal_dimension_worst"], col = ifelse(cluster_assignments == 1, "blue", "red"), pch = 16, 
+     main = "K-means Clustering", xlab = "smoothness_mean", ylab = "fractal_dimension_worst")
+legend("topleft", legend = c("Cluster 1", "Cluster 2"), col = c("blue", "red"), pch = 16)
+plot(df_2[, "smoothness_mean"], df_2[, "fractal_dimension_worst"], col = ifelse(df_2$diagnosis == "B", "blue", "red"), pch = 16, 
+     main = "Diagnosis Scatterplot", xlab = "smoothness_mean", ylab = "fractal_dimension_worst")
+legend("topleft", legend = c("Benign", "Malignant"), col = c("blue", "red"), pch = 16)
+
+# symmetry_mean and fractural
+par(mfrow = c(1, 2))
+plot(df_2[, "symmetry_mean"], df_2[, "fractal_dimension_worst"], col = ifelse(cluster_assignments == 1, "blue", "red"), pch = 16, 
+     main = "K-means Clustering", xlab = "symmetry_mean", ylab = "fractal_dimension_worst")
+legend("topleft", legend = c("Cluster 1", "Cluster 2"), col = c("blue", "red"), pch = 16)
+plot(df_2[, "symmetry_mean"], df_2[, "fractal_dimension_worst"], col = ifelse(df_2$diagnosis == "B", "blue", "red"), pch = 16, 
+     main = "Diagnosis Scatterplot", xlab = "symmetry_mean", ylab = "fractal_dimension_worst")
+legend("topleft", legend = c("Benign", "Malignant"), col = c("blue", "red"), pch = 16)
+
+# # Load the necessary library
+# library(mclust)
+# 
+# # Perform Gaussian Mixture Model (GMM) fitting
+# gmm_model <- Mclust(df_2[, 2:dim(df_2)[2]])
+# 
+# # Extract the cluster assignments
+# cluster_assignments <- gmm_model$classification
+# 
+# # Set up the plot layout
+# par(mfrow = c(1, 2))
+# 
+# # Scatterplot with GMM clustering
+# plot(df_2[, "smoothness_mean"], df_2[, "symmetry_mean"], col = ifelse(cluster_assignments == 1, "blue", "red"), pch = 16, 
+#      main = "Gaussian Mixture Model", xlab = "smoothness_mean", ylab = "symmetry_mean")
+# legend("topright", legend = c("Cluster 1", "Cluster 2"), col = c("blue", "red"), pch = 16)
+# 
+# # Scatterplot with diagnosis coloring
+# plot(df_2[, "smoothness_mean"], df_2[, "symmetry_mean"], col = ifelse(df_2$diagnosis == "B", "blue", "red"), pch = 16, 
+#      main = "Diagnosis Scatterplot", xlab = "smoothness_mean", ylab = "symmetry_mean")
+# legend("topright", legend = c("Benign", "Malignant"), col = c("blue", "red"), pch = 16)
+```
+
+```{r}
+accuracy <- sum(cluster_assignments == ifelse(df_2$diagnosis == "B", 1, 2)) / nrow(df_2)
+accuracy_text <- paste("Accuracy:", accuracy)
+accuracy_text
+
+par(plt = c(0.1, 0.9, 0.1, 0.9))
+
+# Create a 3x2 matrix layout for the plots
+par(mfrow = c(3, 2))
+
+# Adjust the margin for more space between rows
+par(mar = c(4, 4, 2, 2))
+
+# Scatterplot: smoothness_mean vs. symmetry_mean with k-means clustering
+plot(df_2[, "smoothness_mean"], df_2[, "symmetry_mean"], col = ifelse(cluster_assignments == 1, "blue", "red"), pch = 16,
+     main = "K-means Clustering", xlab = "smoothness_mean", ylab = "symmetry_mean")
+legend("topleft", legend = c("Cluster 1", "Cluster 2"), col = c("blue", "red"), pch = 16)
+# Scatterplot: smoothness_mean vs. symmetry_mean with diagnosis coloring
+plot(df_2[, "smoothness_mean"], df_2[, "symmetry_mean"], col = ifelse(df_2$diagnosis == "B", "blue", "red"), pch = 16,
+     main = "Diagnosis Scatterplot", xlab = "smoothness_mean", ylab = "symmetry_mean")
+legend("topleft", legend = c("Benign", "Malignant"), col = c("blue", "red"), pch = 16)
+# Scatterplot: smoothness_mean vs. fractal_dimension_worst with k-means clustering
+plot(df_2[, "smoothness_mean"], df_2[, "fractal_dimension_worst"], col = ifelse(cluster_assignments == 1, "blue", "red"), pch = 16,
+     main = "K-means Clustering", xlab = "smoothness_mean", ylab = "fractal_dimension_worst")
+legend("topleft", legend = c("Cluster 1", "Cluster 2"), col = c("blue", "red"), pch = 16)
+# Scatterplot: smoothness_mean vs. fractal_dimension_worst with diagnosis coloring
+plot(df_2[, "smoothness_mean"], df_2[, "fractal_dimension_worst"], col = ifelse(df_2$diagnosis == "B", "blue", "red"), pch = 16,
+     main = "Diagnosis Scatterplot", xlab = "smoothness_mean", ylab = "fractal_dimension_worst")
+legend("topleft", legend = c("Benign", "Malignant"), col = c("blue", "red"), pch = 16)
+# Scatterplot: symmetry_mean vs. fractal_dimension_worst with k-means clustering
+plot(df_2[, "symmetry_mean"], df_2[, "fractal_dimension_worst"], col = ifelse(cluster_assignments == 1, "blue", "red"), pch = 16,
+     main = "K-means Clustering", xlab = "symmetry_mean", ylab = "fractal_dimension_worst")
+legend("topleft", legend = c("Cluster 1", "Cluster 2"), col = c("blue", "red"), pch = 16)
+# Scatterplot: symmetry_mean vs. fractal_dimension_worst with diagnosis coloring
+plot(df_2[, "symmetry_mean"], df_2[, "fractal_dimension_worst"], col = ifelse(df_2$diagnosis == "B", "blue", "red"), pch = 16,
+     main = "Diagnosis Scatterplot", xlab = "symmetry_mean", ylab = "fractal_dimension_worst")
+legend("topleft", legend = c("Benign", "Malignant"), col = c("blue", "red"), pch = 16)
+```
+
+## Larger Feature values for Malignant samples.
+
+Radius Mean, Texture Mean, Perimeter
+
+```{r}
+# Select the features for the histogram and boxplot
+features <- c("radius_mean", "texture_mean", "perimeter_mean")
+
+# Create a new data frame with selected features and diagnosis label
+data_subset <- cbind(BreastCancer[features], diagnosis = factor(BreastCancer$diagnosis, levels = c("M", "B"), labels = c("Malignant", "Benign")))
+
+# Set up the layout for the plots
+par(mfrow = c(2, length(features)), xpd=TRUE)
+
+# Loop through each feature and create a histogram with diagnosis label
+for (i in 1:length(features)) {
+  hist(data_subset[data_subset$diagnosis == "Malignant", i], col = rgb(1, 0, 0, alpha = 0.5), xlab = features[i], main = NULL, xlim = range(data_subset[, i]), ylim = c(0, 40), xaxt = "n", yaxt = "n")
+  hist(data_subset[data_subset$diagnosis == "Benign", i], col = rgb(0, 0, 1, alpha = 0.5), xlab = features[i], main = NULL, xlim = range(data_subset[, i]), ylim = c(0, 40), xaxt = "n", yaxt = "n", add = TRUE)
+}
+
+# Loop through each feature and create a boxplot with diagnosis label
+for (i in 1:length(features)) {
+  if(i == 3) {
+    # Add a single legend for the diagnosis labels
+    legend("topright", inset=c(0,-0.4), legend = c("Malignant", "Benign"), fill = c("red", "blue"), title = "Diagnosis", horiz = TRUE, bty = "n")    
+  }
+  boxplot(data_subset[, i] ~ data_subset$diagnosis, col = c("red", "blue"), xlab = "Diagnosis", ylab = features[i], main = NULL)
+}
+```
+
+## Correlation Matrix
+```{r}
+# calculate the correlation matrix
+cor_matrix <- cor(BreastCancer[, 2:dim(BreastCancer)[2]])
+
+# create the correlation plot
+corrplot(cor_matrix, method = "circle")
+```
+
+<!-- ```{r} -->
+<!-- alpha <- 0.05 -->
+<!-- p_values <- numeric(0) -->
+<!-- n <- dim(features)[2] -->
+<!-- type_I_error_rates <- numeric(0) -->
+
+<!-- # loop through each feature starting from the 3rd feature -->
+<!-- for (i in 2:n) { -->
+<!--   # Extract the subset of features up to the current iteration -->
+<!--   subset_features <- features[, 1:i] -->
+
+<!--   # perform MANOVA on the subset of features -->
+<!--   manova_result <- manova(as.matrix(subset_features) ~ diagnosis, data = df_2) -->
+<!--   p_value <- summary(manova_result)$stats[1,6] -->
+<!--   if (i == 2) { -->
+<!--     print(summary(manova_result)) -->
+<!--   } -->
+<!--   p_values <- c(p_values, p_value) -->
+<!--   # calculate Type I error rate -->
+<!--   type_I_error_rate <- sum(p_values[1:(i-2)] <= alpha) / (i-2) -->
+<!--   type_I_error_rates <- c(type_I_error_rates, type_I_error_rate) -->
+<!-- } -->
+<!-- #  reject[i-2] <- summary(manova_result)$stats[1,6]<0.05 -->
+<!-- length(p_values) -->
+<!-- length(2:n) -->
+<!-- # Create a data frame with n and p_values -->
+<!-- data <- data.frame(n = 2:n, p_values = p_values, type_I_error_rate = type_I_error_rates) -->
+<!-- plot(2:n, type_I_error_rates) -->
+<!-- ``` -->
